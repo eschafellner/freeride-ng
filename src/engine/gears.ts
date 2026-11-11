@@ -5,11 +5,17 @@
 
 export const WHEEL_CIRCUMFERENCE_M = 2.1;
 
-/** 2×11-ähnliche Abstufung, als Übersetzungsverhältnis Kettenblatt/Ritzel. */
-export const DEFAULT_GEARS: readonly number[] = [
-  34 / 32, 34 / 28, 34 / 25, 34 / 22, 34 / 19, 34 / 17, // klein
-  50 / 19, 50 / 17, 50 / 15, 50 / 14, 50 / 13, 50 / 12, 50 / 11, // groß
-];
+/**
+ * 13 gleichmäßig abgestufte Gänge (je ~11 %), Übersetzung 1,0 bis 3,4.
+ * Bei 85 U/min: Gang 1 ≈ 11 km/h, Gang 13 ≈ 36 km/h. Keine Sprünge wie beim
+ * Kettenblattwechsel, damit ein Schaltvorgang nie plötzlich viel schwerer wird.
+ */
+export const DEFAULT_GEARS: readonly number[] = Array.from({ length: 13 }, (_, i) =>
+  Math.round(3.4 ** (i / 12) * 1000) / 1000,
+);
+
+/** Startgang (Index): ≈ 20 km/h bei 85 U/min, in der Ebene ≈ 60 W. */
+export const DEFAULT_START_GEAR = 6;
 
 export function speedFromCadence(
   cadenceRpm: number,
@@ -24,7 +30,7 @@ export class Gearbox {
 
   constructor(
     readonly ratios: readonly number[] = DEFAULT_GEARS,
-    startIndex = Math.floor(ratios.length / 2),
+    startIndex = Math.min(DEFAULT_START_GEAR, ratios.length - 1),
   ) {
     if (ratios.length === 0) throw new Error('Mindestens ein Gang nötig');
     this._index = Math.min(ratios.length - 1, Math.max(0, startIndex));

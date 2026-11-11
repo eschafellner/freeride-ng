@@ -25,7 +25,9 @@ function ride(engine: RideEngine, opts: { power: number; cadence: number; grade:
   return { state, now };
 }
 
-const make = (config: Partial<RideConfig> = {}) => new RideEngine({ difficulty: 1, ...config });
+/** Reine Physik: volle Steigung, kein Knick, alte Anstiegsrate. */
+const make = (config: Partial<RideConfig> = {}) =>
+  new RideEngine({ difficulty: 1, softKneeWatts: Infinity, maxRiseWattsPerSec: 20, ...config });
 
 describe('RideEngine – Simulationsmodus (virtuelle Gänge)', () => {
   it('Zielwatt entsprechen der Physik für das Wunschtempo', () => {
@@ -150,6 +152,50 @@ describe('RideEngine – andere Modi', () => {
   });
 });
 
+describe('RideEngine – Fahrgefühl mit Standardwerten', () => {
+  const target = (grade: number, cadence = 85) =>
+    ride(new RideEngine(), { power: 150, cadence, grade, seconds: 120 }).state.targetPower;
+
+  it('Ebene im Startgang: moderate Grundlast (40–90 W)', () => {
+    expect(target(0)).toBeGreaterThan(40);
+    expect(target(0)).toBeLessThan(90);
+  });
+
+  it('5 % im Startgang bleibt unter 200 W', () => {
+    expect(target(0.05)).toBeLessThan(200);
+  });
+
+  it('10 % im Startgang erreicht nicht das Maximum', () => {
+    expect(target(0.1)).toBeLessThan(300);
+  });
+
+  it('Kurve wird mit der Steigung flacher (Knick)', () => {
+    const d1 = target(0.03) - target(0);
+    const d2 = target(0.1) - target(0.07);
+    expect(d2).toBeLessThan(d1);
+  });
+
+  it('weicher Knick: unter 150 W unverändert, darüber halbiert', () => {
+    const e = new RideEngine();
+    expect(e.applySoftKnee(120)).toBe(120);
+    expect(e.applySoftKnee(250)).toBe(200);
+  });
+
+  it('Zielwatt steigen höchstens 10 W/s', () => {
+    const e = new RideEngine({ smoothingSec: 0 });
+    const a = ride(e, { power: 100, cadence: 85, grade: 0, seconds: 30 });
+    const b = ride(e, { power: 100, cadence: 85, grade: 0.1, seconds: 1 }, a.now);
+    expect(b.state.targetPower - a.state.targetPower).toBeLessThanOrEqual(11);
+  });
+
+  it('ein Gang schwerer kostet nie mehr als ~15 % (keine Sprünge)', () => {
+    const e = new RideEngine();
+    for (let i = 1; i < e.gears.ratios.length; i++) {
+      expect(e.gears.ratios[i]! / e.gears.ratios[i - 1]!).toBeLessThan(1.15);
+    }
+  });
+});
+
 describe('Gearbox', () => {
   it('bleibt in den Grenzen', () => {
     const g = new Gearbox([1, 2, 3], 1);
@@ -157,6 +203,11 @@ describe('Gearbox', () => {
     expect(g.ratio).toBe(3);
     g.down(); g.down(); g.down();
     expect(g.ratio).toBe(1);
+  });
+  it('startet im Gang für ≈ 20 km/h bei 85 U/min', () => {
+    const g = new Gearbox();
+    expect(speedFromCadence(85, g.ratio) * 3.6).toBeGreaterThan(17);
+    expect(speedFromCadence(85, g.ratio) * 3.6).toBeLessThan(23);
   });
   it('Wunschtempo: 90 U/min, Übersetzung 50/15 ≈ 37,8 km/h', () => {
     expect(speedFromCadence(90, 50 / 15) * 3.6).toBeCloseTo(37.8, 1);

@@ -31,6 +31,13 @@ export interface RideConfig {
   maxRiseWattsPerSec: number;
   /** Zeitkonstante der Glättung der Zielwatt in s. */
   smoothingSec: number;
+  /**
+   * Weicher Knick: Oberhalb dieser Leistung zählt nur `softKneeFactor` des
+   * Mehrbedarfs. Macht Rampen fahrbar, ohne Steigungen ganz zu glätten.
+   * Infinity schaltet den Knick ab.
+   */
+  softKneeWatts: number;
+  softKneeFactor: number;
   /** 'simple': Grundleistung in W. */
   simpleBaseWatts: number;
   /** 'simple': k in Zielwatt = Basis × (1 + k × Steigung%). */
@@ -45,11 +52,13 @@ export interface RideConfig {
 export const DEFAULT_RIDE_CONFIG: RideConfig = {
   physics: DEFAULT_PHYSICS,
   mode: 'sim',
-  difficulty: 0.75,
+  difficulty: 0.5,
   minWatts: 25,
   maxWatts: 300,
-  maxRiseWattsPerSec: 20,
-  smoothingSec: 2,
+  maxRiseWattsPerSec: 10,
+  smoothingSec: 3,
+  softKneeWatts: 150,
+  softKneeFactor: 0.5,
   simpleBaseWatts: 100,
   simpleK: 0.1,
   ergWatts: 120,
@@ -175,9 +184,16 @@ export class RideEngine {
     }
   }
 
+  /** Wendet den weichen Knick an (öffentlich für Tests und Einstellungs-Vorschau). */
+  applySoftKnee(watts: number): number {
+    const { softKneeWatts: k, softKneeFactor: f } = this.config;
+    return watts <= k ? watts : k + (watts - k) * f;
+  }
+
   private updateTarget(raw: number, dt: number): void {
     const c = this.config;
-    const goal = Math.min(c.maxWatts, Math.max(c.minWatts, Number.isFinite(raw) ? raw : c.minWatts));
+    const kneed = Number.isFinite(raw) ? this.applySoftKnee(raw) : c.minWatts;
+    const goal = Math.min(c.maxWatts, Math.max(c.minWatts, kneed));
     // Exponentielle Glättung
     const alpha = c.smoothingSec > 0 ? 1 - Math.exp(-dt / c.smoothingSec) : 1;
     let next = this.target + (goal - this.target) * alpha;
