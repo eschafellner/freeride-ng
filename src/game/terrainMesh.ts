@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Heightfield } from '../world/heightfield';
+import { fieldAt, REBLAND } from '../world/placement';
 import { mulberry32 } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
 import { townMask } from '../world/terrainGen';
@@ -14,7 +15,11 @@ const COLORS = {
   town: new THREE.Color('#c9c2b0'),
   verge: new THREE.Color('#7f9e4a'),
   seabed: new THREE.Color('#c8b98a'),
+  vineyardSoil: new THREE.Color('#a08a5a'),
 };
+
+/** Feldarten: reifes Getreide, junges Grün, Acker, Raps. */
+const FIELD_COLORS = ['#d8c26a', '#a9cf5c', '#9a7a52', '#e6d84a'].map((c) => new THREE.Color(c));
 
 /**
  * Low-Poly-Gelände: jedes Dreieck hat eine eigene, flache Farbe
@@ -54,6 +59,15 @@ export function createTerrainMesh(terrain: Heightfield, roads: RoadNetwork, seed
     else if (mask > 0.15) tmp.copy(COLORS.verge).lerp(COLORS.grassB, steep ? 0.2 : 0.5 + r * 0.3);
     else if (steep) tmp.copy(COLORS.rock);
     else if (townMask(cx, cz) > 0.6) tmp.copy(COLORS.grassA).lerp(COLORS.town, 0.35 + r * 0.25);
+    else if (Math.hypot(cx - REBLAND.x, cz - REBLAND.z) < REBLAND.radius && h > 15) {
+      // Rebland: Wiese mit offenen Bodenstellen zwischen den Weinbergen
+      tmp.copy(COLORS.grassA).lerp(COLORS.vineyardSoil, 0.25 + r * 0.3);
+    } else if (h < 90 && Math.abs(n.y) > 0.985 && mask < 0.05) {
+      // Flachland: Flickenteppich aus Feldern
+      const f = fieldAt(cx, cz, seed);
+      if (f === null) tmp.copy(COLORS.grassA).lerp(COLORS.meadow, r * 0.4);
+      else tmp.copy(FIELD_COLORS[f]!).lerp(COLORS.grassB, r * 0.08);
+    }
     else if (h > 150) tmp.copy(COLORS.forest).lerp(COLORS.rock, r * 0.3);
     else tmp.copy(r < 0.5 ? COLORS.grassA : COLORS.grassB).lerp(COLORS.meadow, r * 0.4);
 

@@ -7,7 +7,8 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
 ## Befehle
 
 - `npm run dev` – Dev-Server auf http://localhost:5173 (Web Serial braucht localhost oder HTTPS)
-  - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`, `&map`); Debug: `/debug.html`
+  - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`, `&map`,
+    `&edge=<Kanten-ID>&s=<Meter>&dir=-1` für einen festen Startpunkt); Debug: `/debug.html`
   - `?demo` lädt und speichert nie (schützt den echten Spielstand)
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
@@ -44,8 +45,10 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `pois.ts` – Kristalle, Aussichtspunkte, Ortsschilder (Position per Knoten oder Kante + t)
   - `exploration.ts` – Erkundungsnebel (`FogGrid`), `progress.ts` – Fortschritt und Ereignisse
   - `saveGame.ts` – Spielstand-Format und Prüfung (`sanitizeSave`)
+  - `placement.ts` – Platzierung von Details (Weinberge, Objekte am Wegrand, Felder, `distanceToRoad`)
 - `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD,
-  Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`)
+  Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`),
+  Details (`props.ts` Häuser/Vegetation, `details.ts` Wegrand/Weinberge, `landmarks.ts` Kirche/Kapelle/Hafen)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen

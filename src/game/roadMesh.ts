@@ -3,7 +3,7 @@ import type { Surface } from '../world/roadLayout';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
 
 const SURFACE: Record<Surface, { width: number; color: string }> = {
-  asphalt: { width: 5, color: '#55585e' },
+  asphalt: { width: 5.5, color: '#55585e' },
   town: { width: 6.5, color: '#8a837a' },
   gravel: { width: 4, color: '#b59f78' },
 };
@@ -31,6 +31,47 @@ function addRibbon(edge: RoadEdge, width: number, color: THREE.Color, pos: numbe
   }
 }
 
+/** Abstand der Markierung über der Fahrbahn. */
+const MARK_LIFT = LIFT + 0.03;
+
+/**
+ * Markierung als dünne Bänder: unterbrochene Mittellinie und durchgehende
+ * Randlinien auf Asphalt. Abstand zu Kreuzungen frei lassen.
+ */
+function addMarkings(edge: RoadEdge, width: number, pos: number[], col: number[], idx: number[]) {
+  const white = [0.93, 0.93, 0.9];
+  const strip = (s0: number, s1: number, lateral: number, w: number) => {
+    const base = pos.length / 3;
+    let k = 0;
+    const n = Math.max(1, Math.ceil((s1 - s0) / 2));
+    for (let step = 0; step <= n; step++) {
+      const s = s0 + ((s1 - s0) * step) / n;
+      const p = edge.pointAt(s);
+      const d = edge.directionAt(s);
+      const px = -d.dz;
+      const pz = d.dx;
+      for (const o of [lateral - w / 2, lateral + w / 2]) {
+        pos.push(p.x + px * o, p.y + MARK_LIFT, p.z + pz * o);
+        col.push(white[0]!, white[1]!, white[2]!);
+      }
+      if (k > 0) {
+        const v = base + k * 2;
+        idx.push(v - 2, v - 1, v, v - 1, v + 1, v);
+      }
+      k++;
+    }
+  };
+  const margin = 9;
+  const end = edge.length - margin;
+  if (end <= margin) return;
+  // Mittellinie: 3 m Strich, 6 m Lücke
+  for (let s = margin; s + 3 <= end; s += 9) strip(s, s + 3, 0, 0.12);
+  // Randlinien
+  const edgeOff = width / 2 - 0.35;
+  strip(margin, end, edgeOff, 0.1);
+  strip(margin, end, -edgeOff, 0.1);
+}
+
 /** Alle Wege als ein einziges Mesh; Kreuzungen bekommen eine runde Platte. */
 export function createRoadMesh(roads: RoadNetwork): THREE.Mesh {
   const pos: number[] = [];
@@ -42,6 +83,7 @@ export function createRoadMesh(roads: RoadNetwork): THREE.Mesh {
     const s = SURFACE[e.surface];
     color.set(s.color);
     addRibbon(e, s.width, color, pos, col, idx);
+    if (e.surface === 'asphalt') addMarkings(e, s.width, pos, col, idx);
   }
 
   // Kreuzungsplatten

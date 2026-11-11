@@ -218,11 +218,24 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 
 **11.11.2026, Fix Simulator:** „Stärker treten“ war unbegrenzt und lag auf A/D, wo man intuitiv lenkt. Gedrückt gehaltene Tasten trieben die Leistung so auf über 1000 W. Jetzt gilt: Trittstärke auf R/F, begrenzt auf ±100 W, ohne Tastenwiederholung, und unter 40 U/min bricht die Leistung ein wie beim echten Ergometer. A/D wählen jetzt die Richtung. Neu ist eine Testanzeige (`T`).
 
+**11.11.2026, Detail-Durchgang umgesetzt:**
+- Landschaft: Weinberge im Rebland (rund 1.400 Rebzeilen entlang der Höhenlinien), Felder als Flickenteppich im Flachland, Laub- und Nadelwald je nach Höhe, Büsche, Felsen an steilen Hängen
+- Straßen: Mittellinie und Randlinien auf Asphalt, Leitpfosten, Laternen in der Stadt, Holzzäune im Rebland
+- Gebäude: Wohnhaus, Stadthaus und Scheune mit Fenstern und Türen. Die Meerseite der Promenade bleibt frei
+- Wahrzeichen: Kirche mit Turm am Marktplatz, Brunnen, Kapelle auf dem Hügel, Hafen mit zwei Molen, Leuchtfeuer und schaukelnden Booten
+- Die Platzierung liegt in `src/world/placement.ts` (getestet), die Modelle in `src/game/props.ts`, `details.ts` und `landmarks.ts`
+- Demo-Startpunkt per URL: `?demo&edge=<id>&s=<m>&dir=-1`
+
+Offen aus dem Detail-Durchgang:
+
+- [ ] Performance mit allen Details auf schwächerer Hardware messen
+- [ ] Die Dorfstraße liegt in einem tiefen Einschnitt, die Weinberge sieht man von dort kaum. Den Weg ggf. umlegen
+
 Offen aus Phase 4:
 
 - [ ] Speichern und Laden im echten Browser prüfen. Im Headless-Test hängt IndexedDB, dafür gibt es jetzt ein Zeitlimit von 2 s beim Laden
 - [ ] Gamepad-Belegung mit dem echten Controller am Lenker testen
-- [ ] Detail-Durchgang: Weinreben, Laubbäume, Zäune, Fahrbahnmarkierung, Hafen mit Booten, Kapelle als Wahrzeichen, mehrere Hausformen
+- [x] Detail-Durchgang (siehe unten)
 
 Offen aus Phase 3 (Nachbessern):
 

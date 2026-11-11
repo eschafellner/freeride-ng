@@ -17,6 +17,8 @@ import { Input, type Action } from './input';
 import { WorldMap } from './minimap';
 import { JUNCTION_SHOW_DISTANCE, JunctionHud, Toasts } from './overlays';
 import { PoiMeshes } from './poiMeshes';
+import { createDetails } from './details';
+import { createLandmarks } from './landmarks';
 import { createProps } from './props';
 import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
@@ -50,11 +52,19 @@ async function main() {
   scene.add(createTerrainMesh(world.terrain, world.roads, world.seed));
   scene.add(createWater());
   scene.add(createRoadMesh(world.roads));
-  scene.add(createProps(world.terrain, world.roads, world.seed));
+  const landmarks = createLandmarks(world.terrain, world.roads);
+  scene.add(landmarks.group);
+  scene.add(createProps(world.terrain, world.roads, world.seed, landmarks.reserved));
+  scene.add(createDetails(world.terrain, world.roads, world.seed));
   const poiMeshes = new PoiMeshes(pois, world.terrain, progress.collected);
   scene.add(poiMeshes.group);
 
-  const start = save?.position ?? world.spawn;
+  // Demo: Startpunkt per URL wählbar (?edge=…&s=…&dir=-1), für Screenshots und Tests
+  const demoEdge = demo ? params.get('edge') : null;
+  const start =
+    demoEdge && world.roads.edges.has(demoEdge)
+      ? { edgeId: demoEdge, s: Number(params.get('s') ?? 0), dir: params.get('dir') === '-1' ? (-1 as const) : (1 as const) }
+      : (save?.position ?? world.spawn);
   const rider = new RiderOnNetwork(world.roads, start.edgeId, start.s, start.dir);
   const selector = new JunctionSelector();
   rider.chooser = selector.chooser;
@@ -438,6 +448,7 @@ async function main() {
     placeRider(dt);
     model.animate(dt, state.speed, state.cadence);
     poiMeshes.animate(dt);
+    landmarks.animate(dt);
     rig.update(dt, riderPos, forward);
     followSun(sun, riderPos);
 

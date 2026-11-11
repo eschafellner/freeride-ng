@@ -1,151 +1,263 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Heightfield } from '../world/heightfield';
+import { distanceToRoad, REBLAND } from '../world/placement';
 import { mulberry32 } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
 import { townMask } from '../world/terrainGen';
+import { merged, painted } from './details';
 
-/** Färbt eine Geometrie einheitlich (für zusammengeführte Low-Poly-Modelle). */
-function painted(geo: THREE.BufferGeometry, color: string): THREE.BufferGeometry {
-  const g = geo.index ? geo.toNonIndexed() : geo;
-  const c = new THREE.Color(color);
-  const n = g.attributes.position!.count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) arr.set([c.r, c.g, c.b], i * 3);
-  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-  return g;
+// --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
+
+function conifer(): THREE.BufferGeometry {
+  return merged([
+    painted(new THREE.CylinderGeometry(0.25, 0.35, 2, 5).translate(0, 1, 0), '#7a5a3a'),
+    painted(new THREE.ConeGeometry(2.2, 4, 6).translate(0, 3.6, 0), '#3f7a34'),
+    painted(new THREE.ConeGeometry(1.6, 3, 6).translate(0, 5.6, 0), '#4a8a3a'),
+  ]);
 }
 
-function treeGeometry(): THREE.BufferGeometry {
-  const trunk = painted(new THREE.CylinderGeometry(0.25, 0.35, 2, 5).translate(0, 1, 0), '#7a5a3a');
-  const crownLow = painted(new THREE.ConeGeometry(2.2, 4, 6).translate(0, 3.6, 0), '#3f7a34');
-  const crownTop = painted(new THREE.ConeGeometry(1.6, 3, 6).translate(0, 5.6, 0), '#4a8a3a');
-  return mergeGeometries([trunk, crownLow, crownTop])!;
+function deciduous(): THREE.BufferGeometry {
+  return merged([
+    painted(new THREE.CylinderGeometry(0.22, 0.32, 2.6, 5).translate(0, 1.3, 0), '#6e5235'),
+    painted(new THREE.IcosahedronGeometry(2.3, 0).translate(0, 4.0, 0), '#6fa83e'),
+    painted(new THREE.IcosahedronGeometry(1.6, 0).translate(0.9, 5.0, 0.4), '#7db648'),
+  ]);
 }
 
-function houseGeometry(): THREE.BufferGeometry {
-  const body = painted(new THREE.BoxGeometry(8, 5, 7).translate(0, 2.5, 0), '#ffffff');
-  const roof = painted(
-    new THREE.ConeGeometry(6.4, 3, 4).rotateY(Math.PI / 4).scale(1, 1, 0.9).translate(0, 6.5, 0),
-    '#b5523b',
-  );
-  return mergeGeometries([body, roof])!;
+function bush(): THREE.BufferGeometry {
+  return merged([
+    painted(new THREE.IcosahedronGeometry(0.9, 0).scale(1.3, 0.8, 1.1).translate(0, 0.55, 0), '#5c9a3a'),
+    painted(new THREE.IcosahedronGeometry(0.6, 0).translate(0.7, 0.5, 0.3), '#68a843'),
+  ]);
 }
 
-const WALL_COLORS = ['#f2e6d0', '#e8d4b0', '#f5efe6', '#e6c9a8', '#d9e2e6', '#f0d9c8'];
+function rock(): THREE.BufferGeometry {
+  return painted(new THREE.DodecahedronGeometry(1, 0).scale(1.4, 0.8, 1.1).translate(0, 0.3, 0), '#9a958c');
+}
 
-/** Einfaches Belegungsraster, damit sich Objekte nicht überlappen. */
+/** Fenster und Tür auf der Vorderseite (+z) eines Quaders der Breite w und Tiefe d. */
+function facade(w: number, d: number, floors: number, floorH: number): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  const front = d / 2 + 0.03;
+  const win = '#3a4a5c';
+  // Tür
+  parts.push(painted(new THREE.BoxGeometry(1.0, 2.0, 0.08).translate(0, 1.0, front), '#6b4226'));
+  for (let f = 0; f < floors; f++) {
+    const y = f * floorH + floorH * 0.6;
+    for (const x of [-w / 3, w / 3]) {
+      if (f === 0 && Math.abs(x) < 0.8) continue;
+      parts.push(painted(new THREE.BoxGeometry(0.9, 1.0, 0.08).translate(x, y, front), win));
+      parts.push(painted(new THREE.BoxGeometry(0.9, 1.0, 0.08).translate(x, y, -front), win));
+    }
+  }
+  // Seitliche Fenster
+  for (let f = 0; f < floors; f++) {
+    parts.push(painted(new THREE.BoxGeometry(0.08, 1.0, 0.9).translate(w / 2 + 0.03, f * floorH + floorH * 0.6, 0), win));
+  }
+  return parts;
+}
+
+/** Wohnhaus: zwei Geschosse, Satteldach. Wände weiß, per Instanzfarbe getönt. */
+function house(): THREE.BufferGeometry {
+  const w = 8, d = 7, h = 5;
+  return merged([
+    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#ffffff'),
+    painted(new THREE.ConeGeometry(6.4, 3, 4).rotateY(Math.PI / 4).scale(1, 1, 0.9).translate(0, h + 1.5, 0), '#b5523b'),
+    painted(new THREE.BoxGeometry(0.7, 1.6, 0.7).translate(2.2, h + 1.8, 0), '#8d8d8d'), // Kamin
+    ...facade(w, d, 2, 2.5),
+  ]);
+}
+
+/** Stadthaus: schmal, drei Geschosse, flaches Walmdach. */
+function townhouse(): THREE.BufferGeometry {
+  const w = 6, d = 9, h = 8.5;
+  return merged([
+    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#ffffff'),
+    painted(new THREE.BoxGeometry(w + 0.4, 0.3, d + 0.4).translate(0, h, 0), '#d8d2c4'),
+    painted(new THREE.ConeGeometry(5.6, 1.8, 4).rotateY(Math.PI / 4).scale(0.75, 1, 1.1).translate(0, h + 1.05, 0), '#9c4a36'),
+    ...facade(w, d, 3, 2.8),
+  ]);
+}
+
+/** Scheune: breit, niedrig, Holz, großes Tor. */
+function barn(): THREE.BufferGeometry {
+  const w = 12, d = 8, h = 4.5;
+  return merged([
+    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#9a6b45'),
+    painted(new THREE.ConeGeometry(8.6, 3.4, 4).rotateY(Math.PI / 4).scale(1.05, 1, 0.68).translate(0, h + 1.7, 0), '#6f4a32'),
+    painted(new THREE.BoxGeometry(3.4, 3.4, 0.1).translate(0, 1.7, d / 2 + 0.05), '#5a3a24'),
+    painted(new THREE.BoxGeometry(3.6, 0.15, 0.12).translate(0, 3.45, d / 2 + 0.08), '#e8e0d0'),
+  ]);
+}
+
+const WALL_COLORS = ['#f2e6d0', '#e8d4b0', '#f5efe6', '#e6c9a8', '#d9e2e6', '#f0d9c8', '#e9c3b5'];
+const TOWNHOUSE_COLORS = ['#e8b796', '#f0d58c', '#c9d8e0', '#f2e6d0', '#d8b0a0', '#e0e8c8'];
+
 class Occupancy {
   private cells = new Set<string>();
   constructor(private readonly size: number) {}
-  private key(x: number, z: number) {
-    return `${Math.floor(x / this.size)},${Math.floor(z / this.size)}`;
-  }
-  tryTake(x: number, z: number): boolean {
-    const k = this.key(x, z);
-    if (this.cells.has(k)) return false;
-    this.cells.add(k);
+  tryTake(x: number, z: number, radius = 0): boolean {
+    const r = Math.ceil(radius / this.size);
+    const ci = Math.floor(x / this.size);
+    const cj = Math.floor(z / this.size);
+    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) if (this.cells.has(`${i},${j}`)) return false;
+    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) this.cells.add(`${i},${j}`);
     return true;
   }
 }
 
-export function createProps(terrain: Heightfield, roads: RoadNetwork, seed: number): THREE.Group {
+interface Instance {
+  matrix: THREE.Matrix4;
+  color?: THREE.Color;
+}
+
+function toMesh(geo: THREE.BufferGeometry, items: Instance[], castShadow = true): THREE.InstancedMesh {
+  const mesh = new THREE.InstancedMesh(
+    geo,
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+    Math.max(1, items.length),
+  );
+  items.forEach((it, i) => {
+    mesh.setMatrixAt(i, it.matrix);
+    if (it.color) mesh.setColorAt(i, it.color);
+  });
+  mesh.count = items.length;
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/**
+ * Häuser, Bäume, Büsche, Felsen und Schranken.
+ * @param reserved Stellen, die frei bleiben sollen (Wahrzeichen), mit Radius
+ */
+export function createProps(
+  terrain: Heightfield,
+  roads: RoadNetwork,
+  seed: number,
+  reserved: { x: number; z: number; r: number }[] = [],
+): THREE.Group {
   const group = new THREE.Group();
   const rng = mulberry32(seed ^ 0x1234567);
-  const occupied = new Occupancy(12);
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
+  const occupied = new Occupancy(6);
+  for (const r of reserved) occupied.tryTake(r.x, r.z, r.r);
   const up = new THREE.Vector3(0, 1, 0);
+  const q = new THREE.Quaternion();
   const pos = new THREE.Vector3();
   const scale = new THREE.Vector3();
+  const mat = (x: number, y: number, z: number, rot: number, sx: number, sy = sx, sz = sx) =>
+    new THREE.Matrix4().compose(pos.set(x, y, z), q.setFromAxisAngle(up, rot), scale.set(sx, sy, sz));
 
-  // --- Häuser: entlang der Stadtstraßen und um die Dörfer ---------------------
-  const houses: THREE.Matrix4[] = [];
-  const houseColors: THREE.Color[] = [];
-  const villageCenters = [...roads.nodes.values()].filter((n) => n.name?.endsWith('dorf'));
+  // --- Gebäude entlang der Wege ---------------------------------------------------------
+  const houses: Instance[] = [];
+  const townhouses: Instance[] = [];
+  const barns: Instance[] = [];
+  const villages = [...roads.nodes.values()].filter((n) => n.name?.endsWith('dorf'));
+  /**
+   * Meerseite eines Weges: Liegt in Blickrichtung vom Weg weg (dx, dz) innerhalb
+   * von 100 m Wasser, bleibt die Seite frei, damit Promenade und Strand offen sind.
+   */
+  const seaward = (x: number, z: number, dx: number, dz: number) => {
+    for (let r = 10; r <= 100; r += 10) if (terrain.sample(x + dx * r, z + dz * r) < 1) return true;
+    return false;
+  };
+  const markt = roads.nodes.get('markt');
 
   for (const e of roads.edges.values()) {
-    for (let s = 10; s < e.length - 10; s += 16) {
+    for (let s = 12; s < e.length - 12; s += 15) {
       const p = e.pointAt(s);
-      const inTown = townMask(p.x, p.z) > 0.7;
-      const nearVillage = villageCenters.some((v) => Math.hypot(v.x - p.x, v.z - p.z) < 140);
-      if (!inTown && !nearVillage) continue;
-      if (!inTown && rng() < 0.5) continue;
+      const town = townMask(p.x, p.z) > 0.7;
+      const core = town && markt !== undefined && Math.hypot(p.x - markt.x, p.z - markt.z) < 260;
+      const village = villages.some((v) => Math.hypot(v.x - p.x, v.z - p.z) < 150);
+      const rural = !town && !village && Math.hypot(p.x - REBLAND.x, p.z - REBLAND.z) < REBLAND.radius + 200;
+      if (!town && !village && !(rural && rng() < 0.035)) continue;
+      if (village && rng() < 0.45) continue;
       const d = e.directionAt(s);
       for (const side of [1, -1]) {
-        if (rng() < 0.2) continue;
-        const off = 13 + rng() * 3;
+        if (rng() < (core ? 0.08 : 0.25)) continue;
+        const type = core ? 'townhouse' : rural ? 'barn' : 'house';
+        const off = type === 'barn' ? 18 : type === 'townhouse' ? 12 : 13 + rng() * 3;
         const x = p.x - d.dz * off * side;
         const z = p.z + d.dx * off * side;
-        if (roads.maskAt(terrain, x, z) > 0.75) continue; // zu nah an einem anderen Weg
+        if (distanceToRoad(roads, x, z, undefined, 30) < (type === 'barn' ? 11 : 8)) continue;
         const y = terrain.sample(x, z);
-        if (y < 2 || !occupied.tryTake(x, z)) continue;
-        // Giebel zur Straße
-        q.setFromAxisAngle(up, Math.atan2(d.dx, d.dz));
-        const sc = 0.8 + rng() * 0.5;
-        scale.set(sc, 0.8 + rng() * (inTown ? 0.9 : 0.4), sc);
-        pos.set(x, y - 0.3, z);
-        houses.push(new THREE.Matrix4().compose(pos, q, scale));
-        houseColors.push(new THREE.Color(WALL_COLORS[Math.floor(rng() * WALL_COLORS.length)]!));
+        if (y < 2 || terrain.slope(x, z) > 0.3 || seaward(x, z, -d.dz * side, d.dx * side)) continue;
+        if (!occupied.tryTake(x, z, type === 'barn' ? 9 : 5)) continue;
+        // Front (+z) zur Straße
+        const rot = Math.atan2(d.dz * side, -d.dx * side);
+        if (type === 'townhouse') {
+          townhouses.push({
+            matrix: mat(x, y - 0.3, z, rot, 1, 0.9 + rng() * 0.35, 1),
+            color: new THREE.Color(TOWNHOUSE_COLORS[Math.floor(rng() * TOWNHOUSE_COLORS.length)]!),
+          });
+        } else if (type === 'barn') {
+          barns.push({ matrix: mat(x, y - 0.3, z, rot, 0.9 + rng() * 0.3) });
+        } else {
+          const sc = 0.85 + rng() * 0.35;
+          houses.push({
+            matrix: mat(x, y - 0.3, z, rot, sc, 0.85 + rng() * (town ? 0.6 : 0.3), sc),
+            color: new THREE.Color(WALL_COLORS[Math.floor(rng() * WALL_COLORS.length)]!),
+          });
+        }
       }
     }
   }
+  group.add(toMesh(house(), houses), toMesh(townhouse(), townhouses), toMesh(barn(), barns));
 
-  const houseMesh = new THREE.InstancedMesh(
-    houseGeometry(),
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-    Math.max(1, houses.length),
-  );
-  houses.forEach((mat, i) => {
-    houseMesh.setMatrixAt(i, mat);
-    houseMesh.setColorAt(i, houseColors[i]!);
-  });
-  houseMesh.count = houses.length;
-  houseMesh.castShadow = true;
-  houseMesh.receiveShadow = true;
-  group.add(houseMesh);
-
-  // --- Bäume: Gruppen per Zufall, nicht auf Wegen, nicht in der Stadt ---------
-  const trees: THREE.Matrix4[] = [];
+  // --- Bäume, Büsche, Felsen ---------------------------------------------------------------
+  const conifers: Instance[] = [];
+  const leafy: Instance[] = [];
+  const bushes: Instance[] = [];
+  const rocks: Instance[] = [];
   const half = terrain.half;
-  const ATTEMPTS = 14000;
-  for (let k = 0; k < ATTEMPTS; k++) {
+  for (let k = 0; k < 18000; k++) {
     const x = (rng() * 2 - 1) * half * 0.98;
     const z = (rng() * 2 - 1) * half * 0.98;
     const y = terrain.sample(x, z);
     if (y < 3) continue;
-    if (townMask(x, z) > 0.2) continue;
-    if (roads.maskAt(terrain, x, z) > 0.05) continue;
-    if (terrain.slope(x, z) > 0.45) continue;
-    // Dichte: mehr Wald in der Höhe und im Norden
-    const density = 0.25 + Math.min(0.6, y / 250) + (z < -600 ? 0.2 : 0);
-    if (rng() > density) continue;
+    const slope = terrain.slope(x, z);
+    const mask = roads.maskAt(terrain, x, z);
+    if (slope > 0.45) {
+      if (rng() < 0.15) rocks.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.8 + rng() * 1.6) });
+      continue;
+    }
+    if (mask > 0.05) continue;
+    const town = townMask(x, z);
+    if (town > 0.2) {
+      // In der Stadt nur vereinzelte Laubbäume in Gärten
+      if (town < 0.9 && rng() < 0.03 && occupied.tryTake(x, z, 3)) {
+        leafy.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.7 + rng() * 0.4) });
+      }
+      continue;
+    }
+    const density = 0.22 + Math.min(0.6, y / 250) + (z < -600 ? 0.2 : 0);
+    const r = rng();
+    if (r > density) {
+      // Offene Landschaft: Büsche und vereinzelte Felsen
+      if (r > 0.97 && occupied.tryTake(x, z, 1)) bushes.push({ matrix: mat(x, y - 0.1, z, rng() * 6, 0.7 + rng() * 0.8) });
+      continue;
+    }
+    if (!occupied.tryTake(x, z, 1)) continue;
     const sc = 0.7 + rng() * 0.8;
-    q.setFromAxisAngle(up, rng() * Math.PI * 2);
-    pos.set(x, y - 0.2, z);
-    scale.set(sc, sc * (0.8 + rng() * 0.5), sc);
-    m.compose(pos, q, scale);
-    trees.push(m.clone());
+    // Unten Laubwald, oben Nadelwald, dazwischen gemischt
+    const leafChance = 1 - Math.min(1, Math.max(0, (y - 60) / 110));
+    if (rng() < leafChance * 0.75) leafy.push({ matrix: mat(x, y - 0.2, z, rng() * 6, sc, sc * (0.85 + rng() * 0.3), sc) });
+    else conifers.push({ matrix: mat(x, y - 0.2, z, rng() * 6, sc, sc * (0.8 + rng() * 0.5), sc) });
   }
-  const treeMesh = new THREE.InstancedMesh(
-    treeGeometry(),
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-    Math.max(1, trees.length),
-  );
-  trees.forEach((mat, i) => treeMesh.setMatrixAt(i, mat));
-  treeMesh.count = trees.length;
-  treeMesh.castShadow = true;
-  group.add(treeMesh);
+  // Laubbäume leicht unterschiedlich getönt
+  const leafTints = ['#ffffff', '#e8f0c8', '#f6e7a8', '#d9eec0'];
+  leafy.forEach((t) => (t.color = new THREE.Color(leafTints[Math.floor(rng() * leafTints.length)]!)));
+  group.add(toMesh(conifer(), conifers), toMesh(deciduous(), leafy), toMesh(bush(), bushes, false), toMesh(rock(), rocks));
 
-  // --- Schranken an gesperrten Wegenden ---------------------------------------
+  // --- Schranken an gesperrten Wegenden ------------------------------------------------------
   for (const n of roads.nodes.values()) {
     if (!n.gate) continue;
     const e = roads.edge(n.edges[0]!);
     const atEnd = e.to === n.id;
     const d = e.directionAt(atEnd ? e.length : 0);
     const barrier = new THREE.Mesh(
-      new THREE.BoxGeometry(7, 0.5, 0.3),
-      new THREE.MeshLambertMaterial({ color: '#d33' }),
+      painted(new THREE.BoxGeometry(7, 0.5, 0.3), '#d33'),
+      new THREE.MeshLambertMaterial({ vertexColors: true }),
     );
     barrier.position.set(n.x, n.y + 1.1, n.z);
     barrier.rotation.y = Math.atan2(d.dx, d.dz) + Math.PI / 2;
@@ -160,5 +272,9 @@ export function createProps(terrain: Heightfield, roads: RoadNetwork, seed: numb
     }
   }
 
+  group.userData.counts = {
+    houses: houses.length, townhouses: townhouses.length, barns: barns.length,
+    conifers: conifers.length, leafy: leafy.length, bushes: bushes.length, rocks: rocks.length,
+  };
   return group;
 }
