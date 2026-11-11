@@ -1,6 +1,8 @@
 import { KettlerSerialDevice, type RawLine } from '../device/KettlerSerialDevice';
 import { MockDevice } from '../device/MockDevice';
 import type { DeviceStatus, Measurement, TrainerDevice, Unsubscribe } from '../device/types';
+import { RideEngine } from '../engine/rideEngine';
+import { RideSession } from '../engine/rideSession';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -25,6 +27,7 @@ const STATUS_TEXT: Record<DeviceStatus, string> = {
 };
 
 let device: TrainerDevice | null = null;
+let session: RideSession | null = null;
 let cleanup: Unsubscribe[] = [];
 const rawLog: RawLine[] = [];
 
@@ -106,6 +109,11 @@ connectBtn.addEventListener('click', async () => {
   try {
     await device.connect();
     device.setTargetPower(Number(targetInput.value));
+    session = new RideSession(new RideEngine({ difficulty: Number(difficultyInput.value) / 100 }), device, {
+      gradeProvider: () => Number(gradeInput.value) / 100,
+    });
+    session.start();
+    if (!engineOn.checked) session.pause();
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
     teardown();
@@ -113,6 +121,8 @@ connectBtn.addEventListener('click', async () => {
 });
 
 function teardown() {
+  session?.stop();
+  session = null;
   for (const fn of cleanup) fn();
   cleanup = [];
   device = null;
@@ -126,10 +136,12 @@ disconnectBtn.addEventListener('click', async () => {
 
 targetInput.addEventListener('input', () => {
   targetOut.value = `${targetInput.value} W`;
-  device?.setTargetPower(Number(targetInput.value));
+  if (!engineOn.checked) device?.setTargetPower(Number(targetInput.value));
 });
 
 function emergencyStop() {
+  engineOn.checked = false;
+  syncEngineToggle();
   device?.emergencyStop();
   targetInput.value = targetInput.min;
   targetOut.value = `${targetInput.min} W`;
@@ -138,7 +150,56 @@ function emergencyStop() {
 estopBtn.addEventListener('click', emergencyStop);
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') emergencyStop();
+  if (e.target instanceof HTMLInputElement && e.target.type !== 'range' && e.target.type !== 'checkbox') return;
+  if (e.key === 'q' || e.key === 'Q') session?.engine.shiftDown();
+  if (e.key === 'e' || e.key === 'E') session?.engine.shiftUp();
 });
+
+// --- Ride-Engine ------------------------------------------------------------
+
+const engineOn = $<HTMLInputElement>('engine-on');
+const gradeInput = $<HTMLInputElement>('grade');
+const difficultyInput = $<HTMLInputElement>('difficulty');
+
+function syncEngineToggle() {
+  targetInput.disabled = engineOn.checked;
+  if (!session) return;
+  if (engineOn.checked) {
+    session.resume();
+  } else {
+    // Pause setzt das Gerät aufs Minimum: Handregler entsprechend zurückstellen
+    session.pause();
+    targetInput.value = targetInput.min;
+    targetOut.value = `${targetInput.min} W`;
+  }
+}
+
+engineOn.addEventListener('change', syncEngineToggle);
+gradeInput.addEventListener('input', () => {
+  $<HTMLOutputElement>('grade-out').value = `${gradeInput.value} %`;
+});
+difficultyInput.addEventListener('input', () => {
+  $<HTMLOutputElement>('difficulty-out').value = `${difficultyInput.value} %`;
+  session?.engine.setDifficulty(Number(difficultyInput.value) / 100);
+});
+$('gear-down').addEventListener('click', () => session?.engine.shiftDown());
+$('gear-up').addEventListener('click', () => session?.engine.shiftUp());
+
+let lastFrame = performance.now();
+function frame(t: number) {
+  const dt = (t - lastFrame) / 1000;
+  lastFrame = t;
+  if (session) {
+    const s = session.advance(dt);
+    setText('e-speed', (s.speed * 3.6).toFixed(1));
+    setText('e-gear', `${s.gearIndex + 1} (${s.gearRatio.toFixed(2)})`);
+    setText('e-target', engineOn.checked ? String(s.targetPower) : '–');
+    setText('e-dist', (s.distance / 1000).toFixed(2));
+    setText('e-elev', String(Math.round(s.elevationGain)));
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
 
 consoleForm.addEventListener('submit', async (e) => {
   e.preventDefault();

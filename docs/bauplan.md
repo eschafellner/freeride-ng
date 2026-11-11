@@ -208,6 +208,13 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 
 **11.11.2026, Phase 1 (ohne Hardware) umgesetzt:** Projekt-Setup, `TrainerDevice`, `KettlerSerialDevice`, `MockDevice`, `PowerLimiter`, Debug-Seite mit Rohdaten-Konsole. 39 Tests grün.
 
+**11.11.2026, Phase 2 umgesetzt:** Ride-Engine (`src/engine/`) mit Physikmodell, virtuellen Gängen (13 Gänge), Modi `sim`/`simple`/`erg`, Glättung und Begrenzung der Zielwatt, feste Taktung (20 Hz Physik, 1 Hz Gerät) über `RideSession`. Die Debug-Seite hat einen Steigungsregler zum Testen des Fahrgefühls. Weltentwurf in `docs/welt.md`. 84 Tests grün.
+
+Offen aus Phase 2:
+
+- [ ] Fahrgefühl am echten Rad prüfen: Glättung (2 s), Schwierigkeit (Standard 75 %), Gangabstufung
+- [ ] Reaktionszeit des E5 auf `PW` messen und Taktung ggf. anpassen
+
 Offen, sobald das USB-Kabel da ist:
 
 - [ ] Phase 0 durchführen. Die Debug-Seite (Modus "Kettler E5 (USB)") ersetzt dabei `screen`/`minicom`: Befehle `ID`, `VE`, `ST`, `RS` senden, `PW` über den Regler, "Mitschnitt speichern"

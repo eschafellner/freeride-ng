@@ -27,9 +27,15 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `powerLimiter.ts` – Sicherheitsgrenzen für Zielwatt
   - `KettlerSerialDevice.ts` – Web-Serial-Treiber (Polling, PW-Taktung, Reconnect)
   - `MockDevice.ts` – Simulator mit Tastatursteuerung, für die Entwicklung ohne Rad
+- `src/engine/` – Ride-Engine, reines TS ohne UI/Gerät
+  - `physics.ts` – Leistungsmodell, Gleichgewichtstempo, Fahrdynamik (Steigung als Anteil: 0.05 = 5 %)
+  - `gears.ts` – virtuelle Gänge
+  - `rideEngine.ts` – Messwerte + Steigung → Tempo, Distanz, Höhenmeter, Zielwatt
+  - `fixedStepLoop.ts`, `rideSession.ts` – 20 Hz Physik, 1 Hz Zielwatt ans Gerät
 - `src/debug/` – Debug-Seite (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen
+- `docs/welt.md` – Weltentwurf (eigene Insel, Regionen, Maßstab, Datenformat)
 
 ## Sicherheitsregeln (nicht verhandelbar)
 
@@ -55,3 +61,4 @@ Grenzen 25–400 W in 5-W-Schritten. Bis dahin sind die Fixtures synthetisch
 - Entwickelt wird mit dem `MockDevice`; das echte Rad kommt erst zum Abschluss einer Phase dazu.
 - Tests vor allem für Parser, Physik und Zielwatt-Begrenzung. Grafik und Spielgefühl prüft der Nutzer selbst.
 - Code-Kommentare und UI-Texte auf Deutsch.
+- Die Welt ist ein eigener Entwurf (`docs/welt.md`), keine Nachbildung bestehender Spielkarten.

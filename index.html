@@ -56,6 +56,32 @@
         <button id="estop" class="estop">NOTSTOPP <kbd>Esc</kbd></button>
       </section>
 
+      <section class="card">
+        <h2>Ride-Engine (Phase 2)</h2>
+        <label class="row"><input type="checkbox" id="engine-on" /> Engine steuert die Zielwatt</label>
+        <div class="row">
+          <span>Steigung</span>
+          <input id="grade" type="range" min="-10" max="12" step="0.5" value="0" />
+          <output id="grade-out">0 %</output>
+        </div>
+        <div class="row">
+          <span>Schwierigkeit</span>
+          <input id="difficulty" type="range" min="50" max="100" step="5" value="75" />
+          <output id="difficulty-out">75 %</output>
+        </div>
+        <div class="row">
+          <button id="gear-down">leichter <kbd>Q</kbd></button>
+          <button id="gear-up">schwerer <kbd>E</kbd></button>
+        </div>
+        <div class="grid">
+          <div class="metric big"><span id="e-speed">–</span><small>km/h (Spiel)</small></div>
+          <div class="metric"><span id="e-gear">–</span><small>Gang</small></div>
+          <div class="metric"><span id="e-target">–</span><small>Zielwatt Engine</small></div>
+          <div class="metric"><span id="e-dist">–</span><small>km</small></div>
+          <div class="metric"><span id="e-elev">–</span><small>Höhenmeter</small></div>
+        </div>
+      </section>
+
       <section class="card" id="console-card" hidden>
         <h2>Rohdaten (Phase 0)</h2>
         <form id="console-form" class="row">
