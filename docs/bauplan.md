@@ -210,6 +210,14 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 
 **11.11.2026, Phase 2 umgesetzt:** Ride-Engine (`src/engine/`) mit Physikmodell, virtuellen Gängen (13 Gänge), Modi `sim`/`simple`/`erg`, Glättung und Begrenzung der Zielwatt, feste Taktung (20 Hz Physik, 1 Hz Gerät) über `RideSession`. Die Debug-Seite hat einen Steigungsregler zum Testen des Fahrgefühls. Weltentwurf in `docs/welt.md`. 84 Tests grün.
 
+**11.11.2026, Phase 3 umgesetzt:** Three.js-Szene im Low-Poly-Stil. Das Gelände wird per Noise erzeugt (fester Seed), das Wegenetz ist von Hand gelegt (`src/world/roadLayout.ts`, 20 Knoten, 29 Wege, 19,5 km, max. 10 %). Die Wege werden ins Gelände eingeschnitten, der Fahrer folgt ihnen automatisch und fährt an Kreuzungen geradeaus. Dazu Verfolgerkamera, HUD, Pause, Notstopp und Häuser, Bäume und Schranken an gesperrten Wegenden. Das Spiel liegt unter `/`, die Debug-Seite unter `/debug.html`. Mit `?demo` startet direkt der Simulator. 104 Tests grün.
+
+Offen aus Phase 3 (Nachbessern):
+
+- [ ] Rebstraße: 34 m hoher Damm, Kapellen- und Waldweg mit bis zu 20 m tiefen Einschnitten. Wege umlegen oder das Gelände dort anpassen
+- [ ] Viele Wege erreichen stellenweise das 10-%-Limit. Prüfen, ob sich das beim Fahren gut anfühlt
+- [ ] Performance auf schwächerer Hardware messen (Gelände rund 180.000 Dreiecke, Schatten)
+
 Offen aus Phase 2:
 
 - [ ] Fahrgefühl am echten Rad prüfen: Glättung (2 s), Schwierigkeit (Standard 75 %), Gangabstufung

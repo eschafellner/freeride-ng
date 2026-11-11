@@ -9,6 +9,23 @@ import {
   type Unsubscribe,
 } from './types';
 
+export interface MockKeyMap {
+  cadenceUp: string;
+  cadenceDown: string;
+  powerUp: string;
+  powerDown: string;
+  stop: string;
+}
+
+export const ARROW_KEYS: MockKeyMap = {
+  cadenceUp: 'ArrowUp', cadenceDown: 'ArrowDown', powerUp: 'ArrowRight', powerDown: 'ArrowLeft', stop: '0',
+};
+
+/** Belegung im Spiel: Pfeiltasten bleiben für die Richtungswahl frei. */
+export const WASD_KEYS: MockKeyMap = {
+  cadenceUp: 'w', cadenceDown: 's', powerUp: 'd', powerDown: 'a', stop: '0',
+};
+
 export interface MockOptions {
   limits?: PowerLimits;
   intervalMs?: number;
@@ -142,32 +159,22 @@ export class MockDevice implements TrainerDevice {
   }
 
   /**
-   * Tastatursteuerung: ↑/↓ Kadenz ±5, ←/→ Leistung ±10 W, 0 = aufhören zu treten.
+   * Tastatursteuerung für Kadenz und „stärker/schwächer treten“.
+   * Standard: ↑/↓ Kadenz ±5, ←/→ Leistung ±10 W, 0 = aufhören zu treten.
    * @returns Funktion zum Entfernen der Tastenbelegung
    */
-  attachKeyboard(target: Window = window): Unsubscribe {
+  attachKeyboard(target: Window = window, keys: MockKeyMap = ARROW_KEYS): Unsubscribe {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      switch (e.key) {
-        case 'ArrowUp':
-          this.cadence = Math.min(150, this.cadence + 5);
-          break;
-        case 'ArrowDown':
-          this.cadence = Math.max(0, this.cadence - 5);
-          break;
-        case 'ArrowRight':
-          this.powerOffset += 10;
-          break;
-        case 'ArrowLeft':
-          this.powerOffset -= 10;
-          break;
-        case '0':
-          this.cadence = 0;
-          this.powerOffset = 0;
-          break;
-        default:
-          return;
-      }
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (key === keys.cadenceUp) this.cadence = Math.min(150, this.cadence + 5);
+      else if (key === keys.cadenceDown) this.cadence = Math.max(0, this.cadence - 5);
+      else if (key === keys.powerUp) this.powerOffset += 10;
+      else if (key === keys.powerDown) this.powerOffset -= 10;
+      else if (key === keys.stop) {
+        this.cadence = 0;
+        this.powerOffset = 0;
+      } else return;
       e.preventDefault();
     };
     target.addEventListener('keydown', handler);

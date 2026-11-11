@@ -16,6 +16,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
     "@types/w3c-web-serial": "^1.0.9",
     "eslint": "^10.14.0",
     "globals": "^17.14.0",
@@ -24,5 +25,9 @@
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "simplex-noise": "^4.0.3",
+    "three": "^0.187.0"
+  }
 }

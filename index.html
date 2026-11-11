@@ -3,99 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Freeride NG – Geräte-Debug</title>
-    <link rel="stylesheet" href="/src/debug/debug.css" />
+    <title>Freeride NG</title>
+    <link rel="stylesheet" href="/src/game/hud.css" />
   </head>
   <body>
-    <header>
-      <h1>Freeride NG <span>Geräte-Debug</span></h1>
-      <span id="status" class="status" data-status="disconnected">getrennt</span>
-    </header>
+    <canvas id="scene"></canvas>
 
-    <main>
-      <section class="card">
-        <h2>Verbindung</h2>
-        <div class="row">
-          <label><input type="radio" name="device" value="mock" checked /> Simulator</label>
-          <label><input type="radio" name="device" value="kettler" /> Kettler E5 (USB)</label>
-        </div>
-        <p id="serial-hint" class="hint" hidden>
-          Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
-        </p>
-        <div class="row">
-          <button id="connect">Verbinden</button>
-          <button id="disconnect" disabled>Trennen</button>
-        </div>
-        <p id="mock-help" class="hint">
-          Simulator: <kbd>↑</kbd>/<kbd>↓</kbd> Kadenz ±5, <kbd>←</kbd>/<kbd>→</kbd> stärker/schwächer
-          treten ±10 W, <kbd>0</kbd> aufhören.
-        </p>
-      </section>
+    <div id="hud" class="hud">
+      <div class="hud-main">
+        <div class="m big"><span id="h-power">0</span><small>W</small></div>
+        <div class="m big"><span id="h-speed">0.0</span><small>km/h</small></div>
+        <div class="m"><span id="h-cadence">0</span><small>U/min</small></div>
+        <div class="m"><span id="h-hr">–</span><small>Puls</small></div>
+      </div>
+      <div class="hud-side">
+        <div class="m"><span id="h-grade">0.0 %</span><small>Steigung</small></div>
+        <div class="m"><span id="h-gear">–</span><small>Gang</small></div>
+        <div class="m"><span id="h-target">–</span><small>Ziel-W</small></div>
+        <div class="m"><span id="h-dist">0.00</span><small>km</small></div>
+        <div class="m"><span id="h-elev">0</span><small>Hm</small></div>
+        <div class="m"><span id="h-time">0:00</span><small>Zeit</small></div>
+      </div>
+      <div id="h-road" class="road-name"></div>
+    </div>
 
-      <section class="card">
-        <h2>Live-Werte</h2>
-        <div class="grid">
-          <div class="metric big"><span id="v-power">–</span><small>Watt</small></div>
-          <div class="metric big"><span id="v-cadence">–</span><small>U/min</small></div>
-          <div class="metric big"><span id="v-hr">–</span><small>Puls</small></div>
-          <div class="metric"><span id="v-target">–</span><small>Soll-Watt (Gerät)</small></div>
-          <div class="metric"><span id="v-sent">–</span><small>gesendet</small></div>
-          <div class="metric"><span id="v-speed">–</span><small>km/h (Gerät)</small></div>
-          <div class="metric"><span id="v-dist">–</span><small>km</small></div>
-          <div class="metric"><span id="v-energy">–</span><small>kJ</small></div>
-          <div class="metric"><span id="v-time">–</span><small>Zeit</small></div>
-        </div>
-      </section>
+    <div id="menu" class="panel">
+      <h1>Freeride NG <span>Velara</span></h1>
+      <p class="sub">Phase 3: erste Fahrt durch Lumen und das Rebland</p>
+      <div class="choices">
+        <button id="start-mock" class="primary">Mit Simulator fahren</button>
+        <button id="start-kettler">Mit Kettler E5 fahren (USB)</button>
+      </div>
+      <p id="serial-hint" class="hint" hidden>
+        Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
+      </p>
+      <table class="keys">
+        <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>leichter / schwerer schalten</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Pause</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Notstopp (Widerstand sofort aufs Minimum)</td></tr>
+        <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5</td></tr>
+        <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td>Simulator: schwächer / stärker treten</td></tr>
+      </table>
+      <p class="hint"><a href="/debug.html">Geräte-Debug-Seite</a></p>
+    </div>
 
-      <section class="card">
-        <h2>Zielwatt</h2>
-        <div class="row">
-          <input id="target" type="range" min="25" max="300" step="5" value="25" />
-          <output id="target-out">25 W</output>
-        </div>
-        <button id="estop" class="estop">NOTSTOPP <kbd>Esc</kbd></button>
-      </section>
+    <div id="paused" class="panel small" hidden>
+      <h2 id="paused-title">Pause</h2>
+      <p id="paused-text">Widerstand ist auf dem Minimum.</p>
+      <button id="resume" class="primary">Weiterfahren <kbd>P</kbd></button>
+    </div>
 
-      <section class="card">
-        <h2>Ride-Engine (Phase 2)</h2>
-        <label class="row"><input type="checkbox" id="engine-on" /> Engine steuert die Zielwatt</label>
-        <div class="row">
-          <span>Steigung</span>
-          <input id="grade" type="range" min="-10" max="12" step="0.5" value="0" />
-          <output id="grade-out">0 %</output>
-        </div>
-        <div class="row">
-          <span>Schwierigkeit</span>
-          <input id="difficulty" type="range" min="50" max="100" step="5" value="75" />
-          <output id="difficulty-out">75 %</output>
-        </div>
-        <div class="row">
-          <button id="gear-down">leichter <kbd>Q</kbd></button>
-          <button id="gear-up">schwerer <kbd>E</kbd></button>
-        </div>
-        <div class="grid">
-          <div class="metric big"><span id="e-speed">–</span><small>km/h (Spiel)</small></div>
-          <div class="metric"><span id="e-gear">–</span><small>Gang</small></div>
-          <div class="metric"><span id="e-target">–</span><small>Zielwatt Engine</small></div>
-          <div class="metric"><span id="e-dist">–</span><small>km</small></div>
-          <div class="metric"><span id="e-elev">–</span><small>Höhenmeter</small></div>
-        </div>
-      </section>
+    <button id="estop" class="estop" hidden title="Notstopp (Esc)">STOP</button>
+    <div id="status" class="status" hidden></div>
 
-      <section class="card" id="console-card" hidden>
-        <h2>Rohdaten (Phase 0)</h2>
-        <form id="console-form" class="row">
-          <input id="console-input" placeholder="Befehl, z.B. ID, VE, ST, RS" autocomplete="off" />
-          <button type="submit">Senden</button>
-        </form>
-        <div class="row">
-          <button id="log-download">Mitschnitt speichern</button>
-          <button id="log-clear">Leeren</button>
-        </div>
-        <pre id="log"></pre>
-      </section>
-    </main>
-
-    <script type="module" src="/src/debug/main.ts"></script>
+    <script type="module" src="/src/game/main.ts"></script>
   </body>
 </html>

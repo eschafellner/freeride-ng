@@ -112,3 +112,4 @@ kbd { border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; font-
   font-size: 0.8rem;
   margin: 0;
 }
+.back { color: var(--accent); text-decoration: none; margin-right: 12px; }

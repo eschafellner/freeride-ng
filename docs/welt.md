@@ -1,9 +1,9 @@
-# Welt: Insel „Velara“ (Arbeitstitel)
+# Welt: Insel „Velara“
 
 Eine eigene, frei erfundene Insel, die fürs Radfahren entworfen ist. Leitideen:
 klar unterscheidbare Regionen, ein markanter Gipfel als Langzeitziel, Brücken als
 Tore zu neuen Gebieten, und jede Region hat ein eigenes Steigungsprofil.
-Alle Namen sind Arbeitstitel.
+Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitstitel.
 
 ## Maßstab
 
@@ -83,6 +83,5 @@ die Wege in noch nicht gebaute Regionen.
 
 - Eigene Ideen: Lieblingsanstieg aus der Gegend oder ein Berg, nach dem der Kogel
   modelliert wird (Länge, Höhenmeter)?
-- Gelände von Hand in einem Editor malen (Heightmap) oder per Noise erzeugen und
-  von Hand nachbessern?
-- Namen der Insel und der Regionen
+- ~~Gelände von Hand malen oder per Noise?~~ Entschieden: per Noise erzeugen (feste Seeds), danach gezielt nachbessern
+- Namen der Regionen
