@@ -23,13 +23,35 @@
         <div class="m"><span id="h-dist">0.00</span><small>km</small></div>
         <div class="m"><span id="h-elev">0</span><small>Hm</small></div>
         <div class="m"><span id="h-time">0:00</span><small>Zeit</small></div>
+        <div class="m"><span id="h-gems">0/15</span><small>Kristalle</small></div>
       </div>
       <div id="h-road" class="road-name"></div>
+      <canvas id="minimap" class="minimap" width="200" height="200"></canvas>
+      <div id="junction" class="junction" hidden></div>
+      <div id="toasts" class="toasts"></div>
+    </div>
+
+    <div id="bigmap" class="bigmap" hidden>
+      <canvas id="bigmap-canvas"></canvas>
+      <div class="bigmap-info">
+        <h2>Velara</h2>
+        <div id="bigmap-stats"></div>
+        <div class="legend">
+          <span><i class="gem"></i> Kristall</span>
+          <span><i class="vp"></i> Aussichtspunkt</span>
+          <span><i class="vp done"></i> entdeckt</span>
+        </div>
+        <p class="hint"><kbd>M</kbd> schließen</p>
+      </div>
     </div>
 
     <div id="menu" class="panel">
       <h1>Freeride NG <span>Velara</span></h1>
-      <p class="sub">Phase 3: erste Fahrt durch Lumen und das Rebland</p>
+      <p class="sub">Erkunde Lumen und das Rebland</p>
+      <div id="save-info" class="save-info" hidden>
+        <span id="save-text"></span>
+        <button id="new-game" class="link">Neu beginnen</button>
+      </div>
       <div class="choices">
         <button id="start-mock" class="primary">Mit Simulator fahren</button>
         <button id="start-kettler">Mit Kettler E5 fahren (USB)</button>
@@ -38,12 +60,15 @@
         Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
       </p>
       <table class="keys">
+        <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Abzweigung an der nächsten Kreuzung wählen</td></tr>
+        <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>geradeaus / Kehrtwende</td></tr>
         <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>leichter / schwerer schalten</td></tr>
-        <tr><td><kbd>P</kbd></td><td>Pause</td></tr>
+        <tr><td><kbd>M</kbd> · <kbd>P</kbd></td><td>Karte · Pause</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Notstopp (Widerstand sofort aufs Minimum)</td></tr>
         <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5</td></tr>
         <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td>Simulator: schwächer / stärker treten</td></tr>
       </table>
+      <p class="hint">Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.</p>
       <p class="hint"><a href="/debug.html">Geräte-Debug-Seite</a></p>
     </div>
 

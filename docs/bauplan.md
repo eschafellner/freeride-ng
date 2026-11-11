@@ -212,6 +212,16 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 
 **11.11.2026, Phase 3 umgesetzt:** Three.js-Szene im Low-Poly-Stil. Das Gelände wird per Noise erzeugt (fester Seed), das Wegenetz ist von Hand gelegt (`src/world/roadLayout.ts`, 20 Knoten, 29 Wege, 19,5 km, max. 10 %). Die Wege werden ins Gelände eingeschnitten, der Fahrer folgt ihnen automatisch und fährt an Kreuzungen geradeaus. Dazu Verfolgerkamera, HUD, Pause, Notstopp und Häuser, Bäume und Schranken an gesperrten Wegenden. Das Spiel liegt unter `/`, die Debug-Seite unter `/debug.html`. Mit `?demo` startet direkt der Simulator. 104 Tests grün.
 
+**11.11.2026, Fahrgefühl angepasst** (vor den ersten Hardwaretests): gleichmäßige Gangabstufung ohne Kettenblattsprung, leichterer Startgang (≈ 20 km/h bei 85 U/min, ≈ 55 W in der Ebene), Schwierigkeit 50 %, weicher Knick über 150 W (nur die Hälfte des Mehrbedarfs zählt), Anstieg der Zielwatt in der Engine max. 10 W/s.
+
+**11.11.2026, Phase 4 umgesetzt (MVP komplett):** Richtungswahl an Kreuzungen mit ←/→ oder Gamepad (Anzeige ab 160 m vor der Kreuzung, Ziele zeigen auf den nächsten benannten Ort), ↓ für eine Kehrtwende. Minimap und große Karte (`M`) mit Erkundungsnebel, 15 Kristalle, 4 Aussichtspunkte und Ortsschilder. Der Spielstand liegt in IndexedDB (Autosave alle 10 s, bei Pause und Ereignissen) und kann im Menü mit „Neu beginnen“ gelöscht werden. Im Modus `?demo` wird nichts geladen oder gespeichert. 133 Tests grün.
+
+Offen aus Phase 4:
+
+- [ ] Speichern und Laden im echten Browser prüfen. Im Headless-Test hängt IndexedDB, dafür gibt es jetzt ein Zeitlimit von 2 s beim Laden
+- [ ] Gamepad-Belegung mit dem echten Controller am Lenker testen
+- [ ] Detail-Durchgang: Weinreben, Laubbäume, Zäune, Fahrbahnmarkierung, Hafen mit Booten, Kapelle als Wahrzeichen, mehrere Hausformen
+
 Offen aus Phase 3 (Nachbessern):
 
 - [ ] Rebstraße: 34 m hoher Damm, Kapellen- und Waldweg mit bis zu 20 m tiefen Einschnitten. Wege umlegen oder das Gelände dort anpassen

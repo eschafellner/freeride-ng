@@ -44,6 +44,12 @@ export class Gearbox {
     return this.ratios[this._index]!;
   }
 
+  /** Gang direkt setzen (z.B. beim Laden eines Spielstands). */
+  set(index: number): void {
+    if (!Number.isFinite(index)) return;
+    this._index = Math.min(this.ratios.length - 1, Math.max(0, Math.round(index)));
+  }
+
   /** Schwerer schalten. */
   up(): void {
     this._index = Math.min(this.ratios.length - 1, this._index + 1);

@@ -88,6 +88,11 @@ export class RiderOnNetwork {
     return this.exitsAt(this.nextNode);
   }
 
+  /** Kehrtwende auf der Stelle. */
+  reverse(): void {
+    this._dir = (-this._dir) as 1 | -1;
+  }
+
   /** Bewegt den Fahrer um ds Meter (≥ 0) entlang des Netzes. */
   advance(ds: number): void {
     let remaining = Math.max(0, ds);

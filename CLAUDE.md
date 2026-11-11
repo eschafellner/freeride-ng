@@ -7,7 +7,8 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
 ## Befehle
 
 - `npm run dev` – Dev-Server auf http://localhost:5173 (Web Serial braucht localhost oder HTTPS)
-  - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`); Debug: `/debug.html`
+  - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`, `&map`); Debug: `/debug.html`
+  - `?demo` lädt und speichert nie (schützt den echten Spielstand)
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
 
@@ -39,7 +40,12 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `roadNetwork.ts` – Spline, Höhenprofil (Knotenausgleich, max. 10 %), Einschneiden ins Gelände
   - `rider.ts` – Fahrer folgt dem Netz, Abzweigungswahl über `ExitChooser`
   - `world.ts` – `createWorld(seed)`
-- `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD
+  - `junction.ts` – Richtungswahl (`JunctionSelector`), Beschriftung der Abzweigungen
+  - `pois.ts` – Kristalle, Aussichtspunkte, Ortsschilder (Position per Knoten oder Kante + t)
+  - `exploration.ts` – Erkundungsnebel (`FogGrid`), `progress.ts` – Fortschritt und Ereignisse
+  - `saveGame.ts` – Spielstand-Format und Prüfung (`sanitizeSave`)
+- `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD,
+  Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen

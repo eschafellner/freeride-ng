@@ -107,6 +107,14 @@ export class RideEngine {
     this.target = this.config.minWatts;
   }
 
+  /** Stellt Gesamtwerte aus einem Spielstand wieder her (Tempo startet bei 0). */
+  restoreTotals(t: { distance: number; elevationGain: number; timeSec: number }): void {
+    this.distance = Math.max(0, t.distance);
+    this.elevationGain = Math.max(0, t.elevationGain);
+    this.timeSec = Math.max(0, t.timeSec);
+    this.speed = 0;
+  }
+
   setMeasurement(m: Measurement): void {
     this.measurement = m;
   }
