@@ -73,7 +73,9 @@ Grenzen 25–400 W in 5-W-Schritten. Bis dahin sind die Fixtures synthetisch
 ## Arbeitsweise
 
 - Entwickelt wird mit dem `MockDevice`; das echte Rad kommt erst zum Abschluss einer Phase dazu.
-  Im Spiel steuert man den Simulator mit W/S (Kadenz) und A/D, die Pfeiltasten sind für die Richtungswahl reserviert.
+  Im Spiel steuert man den Simulator mit W/S (Kadenz) und R/F (Trittstärke, max. ±100 W, ohne Tastenwiederholung).
+  Pfeiltasten und A/D sind für die Richtungswahl reserviert. `T` blendet die Testanzeige ein
+  (Kette Kadenz → Wunschtempo → Zielwatt → gesendet → Ist-Leistung, Drehmoment).
 - Grafik prüfen: headless Chromium aus dem Playwright-Cache mit `--use-angle=swiftshader --enable-unsafe-swiftshader --screenshot` auf `/?demo&skip=…`.
 - Tests vor allem für Parser, Physik und Zielwatt-Begrenzung. Grafik und Spielgefühl prüft der Nutzer selbst.
 - Code-Kommentare und UI-Texte auf Deutsch.

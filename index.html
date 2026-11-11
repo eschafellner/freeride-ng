@@ -29,6 +29,23 @@
       <canvas id="minimap" class="minimap" width="200" height="200"></canvas>
       <div id="junction" class="junction" hidden></div>
       <div id="toasts" class="toasts"></div>
+      <div id="testpanel" class="testpanel" hidden>
+        <div class="tp-title">Testanzeige <kbd>T</kbd></div>
+        <div id="tp-sim" class="tp-sim">
+          <div class="tp-row"><span>Trittstärke</span><b id="tp-offset">0 W</b></div>
+          <div class="tp-bar"><i id="tp-offset-bar"></i></div>
+          <div class="tp-keys"><kbd>W</kbd>/<kbd>S</kbd> Kadenz · <kbd>R</kbd>/<kbd>F</kbd> Trittstärke · <kbd>0</kbd> Stopp</div>
+        </div>
+        <div class="tp-row"><span>Trittfrequenz</span><b id="tp-cadence">–</b></div>
+        <div class="tp-row"><span>Gang · Übersetzung</span><b id="tp-gear">–</b></div>
+        <div class="tp-row"><span>Wunschtempo im Gang</span><b id="tp-wish">–</b></div>
+        <div class="tp-row"><span>Steigung echt · spürbar</span><b id="tp-grade">–</b></div>
+        <div class="tp-row"><span>Zielwatt Engine</span><b id="tp-target">–</b></div>
+        <div class="tp-row"><span>an Gerät gesendet</span><b id="tp-sent">–</b></div>
+        <div class="tp-row"><span>Ist-Leistung</span><b id="tp-power">–</b></div>
+        <div class="tp-row"><span>Drehmoment</span><b id="tp-torque">–</b></div>
+        <div class="tp-row"><span>Tempo im Spiel</span><b id="tp-speed">–</b></div>
+      </div>
     </div>
 
     <div id="bigmap" class="bigmap" hidden>
@@ -60,13 +77,14 @@
         Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
       </p>
       <table class="keys">
-        <tr><td><kbd>←</kbd> / <kbd>→</kbd></td><td>Abzweigung an der nächsten Kreuzung wählen</td></tr>
+        <tr><td><kbd>←</kbd> / <kbd>→</kbd> · <kbd>A</kbd> / <kbd>D</kbd></td><td>Abzweigung an der nächsten Kreuzung wählen</td></tr>
         <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>geradeaus / Kehrtwende</td></tr>
         <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>leichter / schwerer schalten</td></tr>
         <tr><td><kbd>M</kbd> · <kbd>P</kbd></td><td>Karte · Pause</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Notstopp (Widerstand sofort aufs Minimum)</td></tr>
         <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5</td></tr>
-        <tr><td><kbd>A</kbd> / <kbd>D</kbd></td><td>Simulator: schwächer / stärker treten</td></tr>
+        <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>Simulator: stärker / schwächer treten (±100 W)</td></tr>
+        <tr><td><kbd>T</kbd></td><td>Testanzeige ein/aus</td></tr>
       </table>
       <p class="hint">Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.</p>
       <p class="hint"><a href="/debug.html">Geräte-Debug-Seite</a></p>

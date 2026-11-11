@@ -15,11 +15,14 @@ export type Action =
   | 'shiftUp'
   | 'pause'
   | 'map'
-  | 'estop';
+  | 'estop'
+  | 'testPanel';
 
 const KEYS: Record<string, Action> = {
   ArrowLeft: 'turnLeft',
   ArrowRight: 'turnRight',
+  a: 'turnLeft',
+  d: 'turnRight',
   ArrowUp: 'straight',
   ArrowDown: 'uturn',
   q: 'shiftDown',
@@ -27,6 +30,7 @@ const KEYS: Record<string, Action> = {
   p: 'pause',
   m: 'map',
   Escape: 'estop',
+  t: 'testPanel',
 };
 
 const PAD_BUTTONS: Record<number, Action> = {

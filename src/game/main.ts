@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { KettlerSerialDevice } from '../device/KettlerSerialDevice';
-import { MockDevice, WASD_KEYS } from '../device/MockDevice';
+import { GAME_KEYS, MAX_POWER_OFFSET, MockDevice } from '../device/MockDevice';
 import type { DeviceStatus, TrainerDevice, Unsubscribe } from '../device/types';
+import { speedFromCadence } from '../engine/gears';
 import { RideEngine, type RideState } from '../engine/rideEngine';
 import { RideSession } from '../engine/rideSession';
 import { FogGrid } from '../world/exploration';
@@ -175,7 +176,7 @@ async function main() {
     try {
       if (kind === 'mock') {
         const mock = new MockDevice();
-        cleanup.push(mock.attachKeyboard(window, WASD_KEYS));
+        cleanup.push(mock.attachKeyboard(window, GAME_KEYS));
         device = mock;
       } else {
         device = new KettlerSerialDevice();
@@ -189,6 +190,8 @@ async function main() {
       alert(err instanceof Error ? err.message : String(err));
       return;
     }
+    testPanel.hidden = kind !== 'mock';
+    $('tp-sim').hidden = kind !== 'mock';
     session = new RideSession(engine, device, { gradeProvider: () => rider.grade });
     session.start();
     lastDistance = engine.state().distance;
@@ -240,6 +243,9 @@ async function main() {
         break;
       case 'map':
         toggleMap();
+        break;
+      case 'testPanel':
+        testPanel.hidden = !testPanel.hidden;
         break;
       case 'shiftDown':
         engine.shiftDown();
@@ -327,6 +333,36 @@ async function main() {
     const roadName = rider.edge.name ?? '';
     const towards = next.name ? `→ ${next.name} ${Math.round(rider.distanceToNode)} m` : '';
     hud.road.textContent = [roadName, towards].filter(Boolean).join('  ·  ');
+  }
+
+  // --- Testanzeige: die ganze Kette von Kadenz bis Ist-Leistung -----------------------
+
+  const testPanel = $('testpanel');
+  const tp = (id: string) => $(`tp-${id}`);
+
+  function updateTestPanel(s: RideState) {
+    if (testPanel.hidden) return;
+    const mock = device instanceof MockDevice ? device : null;
+    if (mock) {
+      const off = Math.max(-MAX_POWER_OFFSET, Math.min(MAX_POWER_OFFSET, mock.powerOffset));
+      tp('offset').textContent = `${off > 0 ? '+' : ''}${off} W`;
+      const bar = tp('offset-bar');
+      const pct = (Math.abs(off) / MAX_POWER_OFFSET) * 50;
+      bar.style.left = off >= 0 ? '50%' : `${50 - pct}%`;
+      bar.style.width = `${pct}%`;
+    }
+    const cad = s.cadence;
+    tp('cadence').textContent = mock ? `${Math.round(cad)} U/min (Soll ${mock.cadence})` : `${Math.round(cad)} U/min`;
+    tp('gear').textContent = `${s.gearIndex + 1}/${engine.gears.ratios.length} · ${s.gearRatio.toFixed(2)}`;
+    tp('wish').textContent = `${(speedFromCadence(cad, s.gearRatio) * 3.6).toFixed(1)} km/h`;
+    const felt = rider.grade * engine.config.difficulty;
+    tp('grade').textContent = `${(rider.grade * 100).toFixed(1)} % · ${(felt * 100).toFixed(1)} %`;
+    tp('target').textContent = `${s.targetPower} W`;
+    tp('sent').textContent = device?.sentPower == null ? '–' : `${device.sentPower} W`;
+    tp('power').textContent = `${Math.round(s.power)} W`;
+    const torque = cad > 0 ? s.power / ((2 * Math.PI * cad) / 60) : 0;
+    tp('torque').textContent = `${torque.toFixed(1)} Nm`;
+    tp('speed').textContent = `${(s.speed * 3.6).toFixed(1)} km/h`;
   }
 
   function riderInfo() {
@@ -420,6 +456,7 @@ async function main() {
     if (hudTimer > 0.1) {
       hudTimer = 0;
       updateHud(state);
+      updateTestPanel(state);
     }
     mapTimer += dt;
     if (mapTimer > 1 / 15) {

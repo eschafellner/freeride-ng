@@ -22,9 +22,18 @@ export const ARROW_KEYS: MockKeyMap = {
 };
 
 /** Belegung im Spiel: Pfeiltasten bleiben für die Richtungswahl frei. */
-export const WASD_KEYS: MockKeyMap = {
-  cadenceUp: 'w', cadenceDown: 's', powerUp: 'd', powerDown: 'a', stop: '0',
+/**
+ * Belegung im Spiel: Pfeiltasten und A/D bleiben für die Richtungswahl frei.
+ * W/S Trittfrequenz, R/F Trittstärke.
+ */
+export const GAME_KEYS: MockKeyMap = {
+  cadenceUp: 'w', cadenceDown: 's', powerUp: 'r', powerDown: 'f', stop: '0',
 };
+
+/** Grenzen für „stärker/schwächer treten“ in W. */
+export const MAX_POWER_OFFSET = 100;
+/** Unterhalb dieser Trittfrequenz kann das Ergometer die Zielleistung nicht halten. */
+export const ERG_MIN_CADENCE = 40;
 
 export interface MockOptions {
   limits?: PowerLimits;
@@ -127,7 +136,10 @@ export class MockDevice implements TrainerDevice {
     const noise = (spread: number) => (this.random() - 0.5) * 2 * spread;
 
     const pedalling = this.cadence > 0;
-    const goal = pedalling ? Math.max(0, target + this.powerOffset) : 0;
+    // Wie ein echtes Ergometer: Bei sehr niedriger Trittfrequenz bricht die Leistung ein
+    const cadenceFactor = Math.min(1, this.cadence / ERG_MIN_CADENCE);
+    const offset = Math.max(-MAX_POWER_OFFSET, Math.min(MAX_POWER_OFFSET, this.powerOffset));
+    const goal = pedalling ? Math.max(0, target + offset) * cadenceFactor : 0;
     // Trägheit: Zeitkonstante ~1,5 s
     this.power += (goal - this.power) * (1 - Math.exp(-dt / 1.5));
     const power = pedalling ? Math.max(0, Math.round(this.power + noise(4))) : 0;
@@ -160,17 +172,19 @@ export class MockDevice implements TrainerDevice {
 
   /**
    * Tastatursteuerung für Kadenz und „stärker/schwächer treten“.
-   * Standard: ↑/↓ Kadenz ±5, ←/→ Leistung ±10 W, 0 = aufhören zu treten.
+   * Standard: ↑/↓ Kadenz ±5, ←/→ Leistung ±10 W (max. ±100 W), 0 = aufhören zu treten.
    * @returns Funktion zum Entfernen der Tastenbelegung
    */
   attachKeyboard(target: Window = window, keys: MockKeyMap = ARROW_KEYS): Unsubscribe {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Gedrückt halten wiederholt nicht: jeder Schritt braucht einen eigenen Tastendruck
+      if (e.repeat) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       if (key === keys.cadenceUp) this.cadence = Math.min(150, this.cadence + 5);
       else if (key === keys.cadenceDown) this.cadence = Math.max(0, this.cadence - 5);
-      else if (key === keys.powerUp) this.powerOffset += 10;
-      else if (key === keys.powerDown) this.powerOffset -= 10;
+      else if (key === keys.powerUp) this.powerOffset = Math.min(MAX_POWER_OFFSET, this.powerOffset + 10);
+      else if (key === keys.powerDown) this.powerOffset = Math.max(-MAX_POWER_OFFSET, this.powerOffset - 10);
       else if (key === keys.stop) {
         this.cadence = 0;
         this.powerOffset = 0;

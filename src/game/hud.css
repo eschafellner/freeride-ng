@@ -109,7 +109,7 @@ kbd {
 
 .status {
   position: fixed;
-  top: 16px;
+  bottom: 120px;
   left: 16px;
   background: var(--hud-bg);
   padding: 6px 12px;
@@ -225,3 +225,28 @@ button.link { background: none; border: none; color: #8cc4ff; padding: 0; text-d
   .toasts { right: 16px; top: 150px; }
   .bigmap { flex-direction: column; }
 }
+
+/* --- Testanzeige ---------------------------------------------------------- */
+
+.testpanel {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 270px;
+  background: var(--hud-bg);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  backdrop-filter: blur(4px);
+}
+.testpanel[hidden] { display: none; }
+.tp-title { color: var(--hud-muted); font-size: 0.75rem; margin-bottom: 6px; }
+.tp-row { display: flex; justify-content: space-between; gap: 10px; padding: 1px 0; }
+.tp-row span { color: var(--hud-muted); }
+.tp-row b { font-variant-numeric: tabular-nums; }
+.tp-sim { border-bottom: 1px solid rgba(255, 255, 255, 0.15); padding-bottom: 6px; margin-bottom: 6px; }
+.tp-sim[hidden] { display: none; }
+.tp-bar { position: relative; height: 8px; background: rgba(255, 255, 255, 0.15); border-radius: 4px; margin: 4px 0; }
+.tp-bar::after { content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(255, 255, 255, 0.6); }
+.tp-bar i { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
+.tp-keys { color: var(--hud-muted); font-size: 0.72rem; }

@@ -216,6 +216,8 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 
 **11.11.2026, Phase 4 umgesetzt (MVP komplett):** Richtungswahl an Kreuzungen mit ←/→ oder Gamepad (Anzeige ab 160 m vor der Kreuzung, Ziele zeigen auf den nächsten benannten Ort), ↓ für eine Kehrtwende. Minimap und große Karte (`M`) mit Erkundungsnebel, 15 Kristalle, 4 Aussichtspunkte und Ortsschilder. Der Spielstand liegt in IndexedDB (Autosave alle 10 s, bei Pause und Ereignissen) und kann im Menü mit „Neu beginnen“ gelöscht werden. Im Modus `?demo` wird nichts geladen oder gespeichert. 133 Tests grün.
 
+**11.11.2026, Fix Simulator:** „Stärker treten“ war unbegrenzt und lag auf A/D, wo man intuitiv lenkt. Gedrückt gehaltene Tasten trieben die Leistung so auf über 1000 W. Jetzt gilt: Trittstärke auf R/F, begrenzt auf ±100 W, ohne Tastenwiederholung, und unter 40 U/min bricht die Leistung ein wie beim echten Ergometer. A/D wählen jetzt die Richtung. Neu ist eine Testanzeige (`T`).
+
 Offen aus Phase 4:
 
 - [ ] Speichern und Laden im echten Browser prüfen. Im Headless-Test hängt IndexedDB, dafür gibt es jetzt ein Zeitlimit von 2 s beim Laden

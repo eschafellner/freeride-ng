@@ -53,6 +53,35 @@ describe('MockDevice', () => {
     await dev.disconnect();
   });
 
+  it('Trittstärke ist auf ±100 W begrenzt', async () => {
+    const { dev, advance } = makeMock();
+    await dev.connect();
+    dev.cadence = 90;
+    dev.powerOffset = 5000; // z.B. Taste gedrückt gehalten
+    dev.setTargetPower(100);
+    let m = dev.tick();
+    for (let i = 0; i < 60; i++) {
+      advance(1);
+      m = dev.tick();
+    }
+    expect(m.power).toBeLessThanOrEqual(100 + 100 + 5);
+    await dev.disconnect();
+  });
+
+  it('bei sehr niedriger Trittfrequenz bricht die Leistung ein', async () => {
+    const { dev, advance } = makeMock();
+    await dev.connect();
+    dev.cadence = 3;
+    dev.setTargetPower(150);
+    let m = dev.tick();
+    for (let i = 0; i < 60; i++) {
+      advance(1);
+      m = dev.tick();
+    }
+    expect(m.power).toBeLessThan(20);
+    await dev.disconnect();
+  });
+
   it('meldet Statuswechsel', async () => {
     const { dev } = makeMock();
     const seen: string[] = [];
