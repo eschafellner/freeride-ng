@@ -53,6 +53,7 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen
 - `docs/welt.md` – Weltentwurf (eigene Insel, Regionen, Maßstab, Datenformat)
+- `docs/stand.md` – aktueller Stand und Startprompts für die nächste Session (zuerst lesen)
 
 ## Sicherheitsregeln (nicht verhandelbar)
 
