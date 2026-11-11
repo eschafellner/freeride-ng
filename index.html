@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Freeride NG – Geräte-Debug</title>
+    <link rel="stylesheet" href="/src/debug/debug.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Freeride NG <span>Geräte-Debug</span></h1>
+      <span id="status" class="status" data-status="disconnected">getrennt</span>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Verbindung</h2>
+        <div class="row">
+          <label><input type="radio" name="device" value="mock" checked /> Simulator</label>
+          <label><input type="radio" name="device" value="kettler" /> Kettler E5 (USB)</label>
+        </div>
+        <p id="serial-hint" class="hint" hidden>
+          Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
+        </p>
+        <div class="row">
+          <button id="connect">Verbinden</button>
+          <button id="disconnect" disabled>Trennen</button>
+        </div>
+        <p id="mock-help" class="hint">
+          Simulator: <kbd>↑</kbd>/<kbd>↓</kbd> Kadenz ±5, <kbd>←</kbd>/<kbd>→</kbd> stärker/schwächer
+          treten ±10 W, <kbd>0</kbd> aufhören.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Live-Werte</h2>
+        <div class="grid">
+          <div class="metric big"><span id="v-power">–</span><small>Watt</small></div>
+          <div class="metric big"><span id="v-cadence">–</span><small>U/min</small></div>
+          <div class="metric big"><span id="v-hr">–</span><small>Puls</small></div>
+          <div class="metric"><span id="v-target">–</span><small>Soll-Watt (Gerät)</small></div>
+          <div class="metric"><span id="v-sent">–</span><small>gesendet</small></div>
+          <div class="metric"><span id="v-speed">–</span><small>km/h (Gerät)</small></div>
+          <div class="metric"><span id="v-dist">–</span><small>km</small></div>
+          <div class="metric"><span id="v-energy">–</span><small>kJ</small></div>
+          <div class="metric"><span id="v-time">–</span><small>Zeit</small></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Zielwatt</h2>
+        <div class="row">
+          <input id="target" type="range" min="25" max="300" step="5" value="25" />
+          <output id="target-out">25 W</output>
+        </div>
+        <button id="estop" class="estop">NOTSTOPP <kbd>Esc</kbd></button>
+      </section>
+
+      <section class="card" id="console-card" hidden>
+        <h2>Rohdaten (Phase 0)</h2>
+        <form id="console-form" class="row">
+          <input id="console-input" placeholder="Befehl, z.B. ID, VE, ST, RS" autocomplete="off" />
+          <button type="submit">Senden</button>
+        </form>
+        <div class="row">
+          <button id="log-download">Mitschnitt speichern</button>
+          <button id="log-clear">Leeren</button>
+        </div>
+        <pre id="log"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/src/debug/main.ts"></script>
+  </body>
+</html>
