@@ -20,9 +20,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Phase 4: Richtungswahl, Karte mit Nebel, Sammeln, Speichern | ✅ |
 | Detail-Durchgang (Weinberge, Häuser, Kirche, Hafen …) | ✅ |
 | Phase 5: XP, Level, Erfolge, Segmente, Ghost | ✅ (ohne Räder/Outfits/Gebiete) |
+| Phase 5b: Grafik (Qualitätsstufen, Licht, Gras, Wasser) | ✅ |
 | Phase 6: Welt ausbauen | ⏭ als Nächstes |
 
-Qualität: 161 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 167 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -34,6 +35,7 @@ npm test             # Tests
 
 - Spiel: `/` · Debug-Seite für das Gerät: `/debug.html`
 - Schnelltest ohne Menü: `/?demo` (speichert nie), z.B. `/?demo&edge=weinberg-s&s=120`
+- Grafik: Taste `G` oder per `&quality=niedrig|mittel|hoch`, feste Kamera mit `&cam=x,y,z,zielX,zielY,zielZ`
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
 
 ## Steuerung
@@ -44,6 +46,7 @@ npm test             # Tests
 | ↑ / ↓ | geradeaus / Kehrtwende |
 | Q / E | leichter / schwerer schalten |
 | M · P · T | Karte · Pause · Testanzeige |
+| G | Grafik-Einstellungen (pausiert die Fahrt) |
 | Esc oder STOP-Button | Notstopp (Widerstand sofort aufs Minimum) |
 | W / S | Simulator: Trittfrequenz ±5 |
 | R / F | Simulator: stärker / schwächer treten (±100 W) |
@@ -82,6 +85,10 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Rebstraße hat einen 34 m hohen Damm, Kapellen- und Waldweg bis 20 m tiefe Einschnitte
 - Dorfstraße liegt im Einschnitt, die Weinberge sieht man von dort kaum
 - Namen der Regionen sind noch Arbeitstitel
+
+**Grafik selbst prüfen:**
+- Läuft „Hoch“ flüssig? Sonst „Mittel“ (Standard) oder „Niedrig“ im Menü wählen
+- Gefallen Gras, Wasser und Licht? Farben stehen in `scene.ts` (`SKY`), `water.ts` und `grass.ts`
 
 **Phase 5 selbst prüfen:**
 - Segmente fahren und eine Bestzeit setzen, dann den Ghost beim zweiten Versuch ansehen

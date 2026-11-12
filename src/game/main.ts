@@ -29,9 +29,14 @@ import { createLandmarks } from './landmarks';
 import { createProps } from './props';
 import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
-import { createScene, followSun } from './scene';
+import { GraphicsController } from './graphics';
+import { GraphicsPanel } from './graphicsPanel';
+import { createPaving } from './paving';
+import { loadSettings, storeSettings } from './quality';
+import { createScene, driftClouds, followSun } from './scene';
+import { addMaskLines, createTerrainUniforms, PLAZAS } from './shaderChunks';
 import { deleteSave, loadSave, writeSave } from './storage';
-import { createTerrainMesh, createWater } from './terrainMesh';
+import { createTerrainMesh } from './terrainMesh';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -60,13 +65,25 @@ async function main() {
   const unlocked = new Set((save?.achievements ?? []).filter((id) => knownAchievements.has(id)));
   let bonusXp = save?.bonusXp ?? 0;
 
-  const { renderer, scene, camera, sun } = createScene($<HTMLCanvasElement>('scene'));
-  scene.add(createTerrainMesh(world.terrain, world.roads, world.seed));
-  scene.add(createWater());
+  const bundle = createScene($<HTMLCanvasElement>('scene'));
+  const { scene, camera, sun } = bundle;
+  const terrainMesh = createTerrainMesh(world.terrain, world.roads, world.seed);
+  scene.add(terrainMesh.mesh);
+  const terrainUniforms = createTerrainUniforms(world.terrain, world.roads, terrainMesh.ground);
+  const graphics = new GraphicsController(bundle, terrainUniforms, loadSettings());
   scene.add(createRoadMesh(world.roads));
+  scene.add(createPaving(world.terrain, world.roads));
   const landmarks = createLandmarks(world.terrain, world.roads);
+  // Gepflasterte Plätze frei von Häusern und Bäumen halten
+  for (const p of PLAZAS) {
+    const n = world.roads.nodes.get(p.node);
+    if (n) landmarks.reserved.push({ x: n.x, z: n.z, r: p.radius + 6 });
+  }
   scene.add(landmarks.group);
-  scene.add(createProps(world.terrain, world.roads, world.seed, landmarks.reserved));
+  const props = createProps(world.terrain, world.roads, world.seed, landmarks.reserved);
+  scene.add(props);
+  // Wege zu den Haustüren: kein Gras auf den Trittsteinen
+  addMaskLines(terrainUniforms, props.userData.pathLines as { x: number; z: number }[][], 1.6);
   scene.add(createDetails(world.terrain, world.roads, world.seed));
   const poiMeshes = new PoiMeshes(pois, world.terrain, progress.collected);
   scene.add(poiMeshes.group);
@@ -271,6 +288,22 @@ async function main() {
     if (!bigmap.hidden) drawBigMap();
   }
 
+  const graphicsPanel = new GraphicsPanel($('graphics'), graphics.settings, (s) => {
+    graphics.apply(s);
+    storeSettings(s);
+  });
+  /** Grafikmenü: während der Fahrt wird dafür pausiert (Widerstand aufs Minimum). */
+  function toggleGraphics(force?: boolean) {
+    const open = force ?? !graphicsPanel.open;
+    if (open && session && !session.isPaused) pause();
+    graphicsPanel.show(open);
+    // Pause-Fenster ausblenden, solange eingestellt wird (freie Sicht auf die Szene)
+    if (session?.isPaused) pausedPanel.hidden = open;
+  }
+  graphicsPanel.onClose = () => toggleGraphics(false);
+  $('open-graphics').addEventListener('click', () => toggleGraphics(true));
+  $('pause-graphics').addEventListener('click', () => toggleGraphics(true));
+
   $('start-mock').addEventListener('click', () => void startRide('mock'));
   $('start-kettler').addEventListener('click', () => void startRide('kettler'));
   $('resume').addEventListener('click', resume);
@@ -292,6 +325,9 @@ async function main() {
         break;
       case 'testPanel':
         testPanel.hidden = !testPanel.hidden;
+        break;
+      case 'graphics':
+        toggleGraphics();
         break;
       case 'shiftDown':
         engine.shiftDown();
@@ -582,6 +618,10 @@ async function main() {
 
   // --- Spielschleife ---------------------------------------------------------------------
 
+  let clock = 0;
+  // Demo: feste Kamera für Grafikprüfungen (?cam=x,y,z,zielX,zielY,zielZ)
+  const camParam = demo ? params.get('cam')?.split(',').map(Number) : undefined;
+  const fixedCam = camParam?.length === 6 && camParam.every(Number.isFinite) ? camParam : null;
   let last = performance.now();
   let hudTimer = 0;
   let mapTimer = 0;
@@ -613,7 +653,14 @@ async function main() {
     poiMeshes.animate(dt);
     landmarks.animate(dt);
     rig.update(dt, riderPos, forward);
+    if (fixedCam) {
+      camera.position.set(fixedCam[0]!, fixedCam[1]!, fixedCam[2]!);
+      camera.lookAt(fixedCam[3]!, fixedCam[4]!, fixedCam[5]!);
+    }
     followSun(sun, riderPos);
+    clock += dt;
+    graphics.update(clock, camera);
+    driftClouds(bundle.clouds, dt);
 
     if (session && !session.isPaused) {
       if (fog.reveal(riderPos.x, riderPos.z, REVEAL_RADIUS) > 0) dirty = true;
@@ -650,7 +697,7 @@ async function main() {
       if (!bigmap.hidden) drawBigMap();
     }
 
-    renderer.render(scene, camera);
+    graphics.render();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

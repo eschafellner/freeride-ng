@@ -306,3 +306,40 @@ button.link { background: none; border: none; color: #8cc4ff; padding: 0; text-d
 .toast.level { border-color: #f0a202; font-size: 1.1rem; }
 .toast.segment-ok { border-color: #2fb344; }
 .toast.segment-bad { border-color: #868e96; }
+
+/* --- Grafik-Einstellungen ------------------------------------------------- */
+
+button.graphics-link { display: block; margin: 12px auto 0; font-size: 0.9rem; }
+.panel.graphics {
+  left: auto;
+  right: 16px;
+  top: 232px; /* unter der Minikarte */
+  transform: none;
+  width: min(380px, calc(100% - 32px));
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+  z-index: 5;
+}
+.panel.graphics h2 small { color: var(--hud-muted); font-weight: 400; font-size: 0.8rem; margin-left: 8px; }
+.g-presets { display: flex; gap: 6px; margin: 4px 0 14px; }
+.g-presets button { flex: 1; padding: 6px 8px; }
+.g-presets button.active { background: var(--accent); border-color: var(--accent); }
+.g-grid { display: grid; grid-template-columns: auto 1fr 3.6em; gap: 8px 10px; align-items: center; font-size: 0.9rem; }
+.g-grid label { color: var(--hud-muted); }
+.g-grid output { text-align: right; font-variant-numeric: tabular-nums; }
+.g-grid input[type='range'] { width: 100%; accent-color: var(--accent); }
+.g-grid input[type='checkbox'] { justify-self: start; width: 18px; height: 18px; accent-color: var(--accent); }
+.g-grid select {
+  font: inherit;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--hud-text);
+}
+.g-grid select option { color: #111; }
+.panel.graphics .hint { margin: 14px 0 10px; }
+.panel.graphics #g-close { width: 100%; }
+@media (max-width: 760px) {
+  .panel.graphics { right: 50%; top: 50%; transform: translate(50%, -50%); max-height: calc(100vh - 32px); }
+}

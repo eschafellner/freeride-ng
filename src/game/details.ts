@@ -90,9 +90,10 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
   const inTown = (x: number, z: number) => townMask(x, z) > 0.6;
   const inRebland = (x: number, z: number) => Math.hypot(x - REBLAND.x, z - REBLAND.z) < REBLAND.radius;
 
-  // Laternen in der Stadt, abwechselnd links und rechts
+  // Laternen in der Stadt, abwechselnd links und rechts, vorn am Gehsteig
+  // (Bordstein bei 3,25 m von der Wegmitte, Mast 0,4 m dahinter)
   const lamps = roadside(terrain, roads, {
-    spacing: 28, offset: 4.4, sides: [1, -1], staggered: true,
+    spacing: 28, offset: 3.65, sides: [1, -1], staggered: true,
     edgeFilter: (e) => e.surface === 'town',
     pointFilter: inTown,
   });

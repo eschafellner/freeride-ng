@@ -63,6 +63,34 @@ export class Heightfield {
     return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
   }
 
+  /**
+   * Höhe genau auf der Dreiecksfläche des Geländemeshes (gleiche Diagonalen wie
+   * `createTerrainMesh`: abwechselnd je nach (i + j) gerade/ungerade).
+   * Gras und Wasser im Shader rechnen genauso (`TERRAIN_GLSL`).
+   */
+  meshHeight(x: number, z: number): number {
+    const fx = clamp((x + this.half) / this.cell, 0, this.res - 1);
+    const fz = clamp((z + this.half) / this.cell, 0, this.res - 1);
+    const i = Math.min(this.res - 2, Math.floor(fx));
+    const j = Math.min(this.res - 2, Math.floor(fz));
+    const tx = fx - i;
+    const tz = fz - j;
+    const h00 = this.get(i, j);
+    const h10 = this.get(i + 1, j);
+    const h01 = this.get(i, j + 1);
+    const h11 = this.get(i + 1, j + 1);
+    if ((i + j) % 2 === 0) {
+      // Diagonale (i, j+1) – (i+1, j)
+      return tx + tz <= 1
+        ? h00 + (h10 - h00) * tx + (h01 - h00) * tz
+        : h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
+    }
+    // Diagonale (i, j) – (i+1, j+1)
+    return tz >= tx
+      ? h00 + (h01 - h00) * tz + (h11 - h01) * tx
+      : h00 + (h10 - h00) * tx + (h11 - h10) * tz;
+  }
+
   /** Geländeneigung als Betrag des Gradienten (0.1 = 10 %). */
   slope(x: number, z: number): number {
     const d = this.cell;

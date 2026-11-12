@@ -122,6 +122,15 @@ Lies CLAUDE.md und Bauplan Phase 4. Erweitere die Welt zu einer kleinen Insel mi
 
 Umgesetzt am 12.11.2026 bis auf die freischaltbaren Räder, Outfits und Gebiete (siehe „Stand & offene Punkte“).
 
+### Phase 5b: Grafik-Durchgang (Zwischenphase)
+
+**Ergebnis:** Die Welt sieht lebendiger und plastischer aus, ohne schwächere Rechner auszusperren.
+
+- Qualitätsstufen Niedrig/Mittel/Hoch im Menü
+- Licht und Atmosphäre: Tone Mapping, Himmel mit Sonne, Wolken, saubere Schatten
+- Boden und Wasser: Farbvariation, Gras und Blumen, Gehsteige und Plätze, Wellen, Uferschaum, Glitzern
+- Auf „Hoch“: Umgebungsverdeckung und Bloom
+
 ### Phase 6: Welt ausbauen
 
 **Ergebnis:** Eine größere, lebendige Welt, die auch auf schwächerer Hardware flüssig läuft.
@@ -235,6 +244,29 @@ Offen aus Phase 5:
 - [ ] Freischaltbare Räder und Outfits (z. B. Trikotfarben ab bestimmten Leveln), neue Gebiete hinter den Schranken (Hafenbrücke, Passweg). Gehört sinnvoll zu Phase 6, wenn es dort neue Gebiete gibt
 - [ ] Zielzeiten für die Segmente am echten Rad prüfen, ggf. Erfolge mit Zeitlimit ergänzen
 - [ ] Mehr Segmente, z. B. eine Bergwertung auf der Passstraße und ein längeres Zeitfahren
+
+**12.11.2026, Phase 5b (Grafik) umgesetzt:**
+- Qualitätsstufen (`src/game/quality.ts`): Auswahl im Menü (gespeichert im localStorage) oder `?quality=`. Niedrig: ohne Gras und Wellen. Mittel: Gras im Umkreis von 40 m, Wellengitter 16 m. Hoch: Gras 64 m, Wellen 8 m, Shadow-Map 4096, GTAO und Bloom (`postfx.ts`)
+- Licht: ACES-Tone-Mapping, Himmel-Shader mit Sonnenscheibe und Lichthof in derselben Richtung wie das Licht (`SUN_DIR`), Low-Poly-Wolken, `normalBias` gegen die Schattenstreifen an Hauswänden, leicht weiche PCF-Schatten
+- Boden: Farbflecken und feines Rauschen im Geländeshader. Gras und Blumen als Kachel, die im Vertex-Shader um die Kamera wandert (`grass.ts`). Höhe, Bodenart und Straßenmaske kommen aus Texturen (`shaderChunks.ts`), die Höhe folgt exakt den Geländedreiecken (`Heightfield.meshHeight`, getestet)
+- Lumen: Gehsteige mit Bordstein an den Stadtstraßen, gepflasterter Markt- und Hafenplatz (`paving.ts`), die Plätze bleiben frei von Häusern
+- Wasser (`water.ts`): facettierte Wellen, Farbe nach Wassertiefe, Uferschaum, Sonnenglitzern
+- Demo: `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera bei Grafikprüfungen
+
+**12.11.2026, Phase 5b nachgebessert (Rückmeldung nach dem ersten Test):**
+- Grafikmenü (`G`, auch im Startmenü und in der Pause) mit Voreinstellungen und Reglern: Grasweite (0–200 m), Grasdichte, Bildschärfe, Schatten, Wellen, Kontaktschatten, Bloom. Alles wirkt sofort (`graphics.ts`, `graphicsPanel.ts`) und wird im localStorage gespeichert
+- Gras in zwei Stufen (dicht bis 32 m, darüber locker) mit langem, zufällig ausdünnendem Übergang. Zum Rand hin nimmt es die Bodenfarbe an, dadurch gibt es keine sichtbare Kante mehr
+- Laternen stehen an der Bordsteinkante statt mitten auf dem Gehsteig
+- Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
+- Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
+
+Offen aus Phase 5b:
+
+- [ ] Bildrate auf allen drei Stufen im echten Browser messen (headless nur mit Software-Rendering geprüft)
+- [ ] Auf „Hoch“ ist der Himmel etwas blasser als auf „Mittel“, weil dort auch der Himmel durch das Tone Mapping läuft
+- [ ] In den Randbereichen von Lumen (außerhalb der Stadtmaske) wächst noch dichtes Gras zwischen den Häusern
+- [ ] Gras wächst bis an die Hauswände und verdeckt dort teils die Erdgeschossfenster. Hausflächen in die Grasmaske aufnehmen
+- [ ] Stadthäuser stehen nah am Gehsteig, ihre Wege sind nur etwa 1,5 m lang
 
 **11.11.2026, Detail-Durchgang umgesetzt:**
 - Landschaft: Weinberge im Rebland (rund 1.400 Rebzeilen entlang der Höhenlinien), Felder als Flickenteppich im Flachland, Laub- und Nadelwald je nach Höhe, Büsche, Felsen an steilen Hängen

@@ -16,7 +16,8 @@ export type Action =
   | 'pause'
   | 'map'
   | 'estop'
-  | 'testPanel';
+  | 'testPanel'
+  | 'graphics';
 
 const KEYS: Record<string, Action> = {
   ArrowLeft: 'turnLeft',
@@ -31,6 +32,7 @@ const KEYS: Record<string, Action> = {
   m: 'map',
   Escape: 'estop',
   t: 'testPanel',
+  g: 'graphics',
 };
 
 const PAD_BUTTONS: Record<number, Action> = {
@@ -53,7 +55,7 @@ export class Input {
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.repeat) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const action = KEYS[key];

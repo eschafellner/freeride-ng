@@ -83,6 +83,7 @@
         <button id="start-mock" class="primary">Mit Simulator fahren</button>
         <button id="start-kettler">Mit Kettler E5 fahren (USB)</button>
       </div>
+      <button id="open-graphics" class="link graphics-link">Grafik-Einstellungen <kbd>G</kbd></button>
       <p id="serial-hint" class="hint" hidden>
         Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
       </p>
@@ -95,6 +96,7 @@
         <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5</td></tr>
         <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>Simulator: stärker / schwächer treten (±100 W)</td></tr>
         <tr><td><kbd>T</kbd></td><td>Testanzeige ein/aus</td></tr>
+        <tr><td><kbd>G</kbd></td><td>Grafik-Einstellungen</td></tr>
       </table>
       <p class="hint">Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.</p>
       <p class="hint"><a href="/debug.html">Geräte-Debug-Seite</a></p>
@@ -104,7 +106,10 @@
       <h2 id="paused-title">Pause</h2>
       <p id="paused-text">Widerstand ist auf dem Minimum.</p>
       <button id="resume" class="primary">Weiterfahren <kbd>P</kbd></button>
+      <button id="pause-graphics" class="link graphics-link">Grafik-Einstellungen <kbd>G</kbd></button>
     </div>
+
+    <div id="graphics" class="panel graphics" hidden></div>
 
     <button id="estop" class="estop" hidden title="Notstopp (Esc)">STOP</button>
     <div id="status" class="status" hidden></div>

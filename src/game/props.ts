@@ -5,6 +5,7 @@ import { mulberry32 } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
 import { townMask } from '../world/terrainGen';
 import { merged, painted } from './details';
+import { createFrontPaths, createHouseVariants, tintedMaterial, type FrontPath } from './houses';
 
 // --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
 
@@ -35,50 +36,6 @@ function rock(): THREE.BufferGeometry {
   return painted(new THREE.DodecahedronGeometry(1, 0).scale(1.4, 0.8, 1.1).translate(0, 0.3, 0), '#9a958c');
 }
 
-/** Fenster und Tür auf der Vorderseite (+z) eines Quaders der Breite w und Tiefe d. */
-function facade(w: number, d: number, floors: number, floorH: number): THREE.BufferGeometry[] {
-  const parts: THREE.BufferGeometry[] = [];
-  const front = d / 2 + 0.03;
-  const win = '#3a4a5c';
-  // Tür
-  parts.push(painted(new THREE.BoxGeometry(1.0, 2.0, 0.08).translate(0, 1.0, front), '#6b4226'));
-  for (let f = 0; f < floors; f++) {
-    const y = f * floorH + floorH * 0.6;
-    for (const x of [-w / 3, w / 3]) {
-      if (f === 0 && Math.abs(x) < 0.8) continue;
-      parts.push(painted(new THREE.BoxGeometry(0.9, 1.0, 0.08).translate(x, y, front), win));
-      parts.push(painted(new THREE.BoxGeometry(0.9, 1.0, 0.08).translate(x, y, -front), win));
-    }
-  }
-  // Seitliche Fenster
-  for (let f = 0; f < floors; f++) {
-    parts.push(painted(new THREE.BoxGeometry(0.08, 1.0, 0.9).translate(w / 2 + 0.03, f * floorH + floorH * 0.6, 0), win));
-  }
-  return parts;
-}
-
-/** Wohnhaus: zwei Geschosse, Satteldach. Wände weiß, per Instanzfarbe getönt. */
-function house(): THREE.BufferGeometry {
-  const w = 8, d = 7, h = 5;
-  return merged([
-    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#ffffff'),
-    painted(new THREE.ConeGeometry(6.4, 3, 4).rotateY(Math.PI / 4).scale(1, 1, 0.9).translate(0, h + 1.5, 0), '#b5523b'),
-    painted(new THREE.BoxGeometry(0.7, 1.6, 0.7).translate(2.2, h + 1.8, 0), '#8d8d8d'), // Kamin
-    ...facade(w, d, 2, 2.5),
-  ]);
-}
-
-/** Stadthaus: schmal, drei Geschosse, flaches Walmdach. */
-function townhouse(): THREE.BufferGeometry {
-  const w = 6, d = 9, h = 8.5;
-  return merged([
-    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#ffffff'),
-    painted(new THREE.BoxGeometry(w + 0.4, 0.3, d + 0.4).translate(0, h, 0), '#d8d2c4'),
-    painted(new THREE.ConeGeometry(5.6, 1.8, 4).rotateY(Math.PI / 4).scale(0.75, 1, 1.1).translate(0, h + 1.05, 0), '#9c4a36'),
-    ...facade(w, d, 3, 2.8),
-  ]);
-}
-
 /** Scheune: breit, niedrig, Holz, großes Tor. */
 function barn(): THREE.BufferGeometry {
   const w = 12, d = 8, h = 4.5;
@@ -96,6 +53,14 @@ const TOWNHOUSE_COLORS = ['#e8b796', '#f0d58c', '#c9d8e0', '#f2e6d0', '#d8b0a0',
 class Occupancy {
   private cells = new Set<string>();
   constructor(private readonly size: number) {}
+  /** Belegt die Fläche ohne Prüfung (für reservierte Stellen, die sich überlappen dürfen). */
+  take(x: number, z: number, radius = 0): void {
+    const r = Math.ceil(radius / this.size);
+    const ci = Math.floor(x / this.size);
+    const cj = Math.floor(z / this.size);
+    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) this.cells.add(`${i},${j}`);
+  }
+
   tryTake(x: number, z: number, radius = 0): boolean {
     const r = Math.ceil(radius / this.size);
     const ci = Math.floor(x / this.size);
@@ -140,7 +105,7 @@ export function createProps(
   const group = new THREE.Group();
   const rng = mulberry32(seed ^ 0x1234567);
   const occupied = new Occupancy(6);
-  for (const r of reserved) occupied.tryTake(r.x, r.z, r.r);
+  for (const r of reserved) occupied.take(r.x, r.z, r.r);
   const up = new THREE.Vector3(0, 1, 0);
   const q = new THREE.Quaternion();
   const pos = new THREE.Vector3();
@@ -149,9 +114,13 @@ export function createProps(
     new THREE.Matrix4().compose(pos.set(x, y, z), q.setFromAxisAngle(up, rot), scale.set(sx, sy, sz));
 
   // --- Gebäude entlang der Wege ---------------------------------------------------------
-  const houses: Instance[] = [];
-  const townhouses: Instance[] = [];
+  const variants = createHouseVariants(mulberry32(seed ^ 0x51ed));
+  const houses: Instance[][] = variants.houses.map(() => []);
+  const townhouses: Instance[][] = variants.townhouses.map(() => []);
   const barns: Instance[] = [];
+  const frontPaths: FrontPath[] = [];
+  const gardenBushes: Instance[] = [];
+  const doorPoint = new THREE.Vector3();
   const villages = [...roads.nodes.values()].filter((n) => n.name?.endsWith('dorf'));
   /**
    * Meerseite eines Weges: Liegt in Blickrichtung vom Weg weg (dx, dz) innerhalb
@@ -185,29 +154,60 @@ export function createProps(
         if (!occupied.tryTake(x, z, type === 'barn' ? 9 : 5)) continue;
         // Front (+z) zur Straße
         const rot = Math.atan2(d.dz * side, -d.dx * side);
-        if (type === 'townhouse') {
-          townhouses.push({
-            matrix: mat(x, y - 0.3, z, rot, 1, 0.9 + rng() * 0.35, 1),
-            color: new THREE.Color(TOWNHOUSE_COLORS[Math.floor(rng() * TOWNHOUSE_COLORS.length)]!),
-          });
-        } else if (type === 'barn') {
+        if (type === 'barn') {
           barns.push({ matrix: mat(x, y - 0.3, z, rot, 0.9 + rng() * 0.3) });
-        } else {
-          const sc = 0.85 + rng() * 0.35;
-          houses.push({
-            matrix: mat(x, y - 0.3, z, rot, sc, 0.85 + rng() * (town ? 0.6 : 0.3), sc),
-            color: new THREE.Color(WALL_COLORS[Math.floor(rng() * WALL_COLORS.length)]!),
+          continue;
+        }
+        const town = type === 'townhouse';
+        const list = town ? variants.townhouses : variants.houses;
+        const vi = Math.floor(rng() * list.length);
+        const variant = list[vi]!;
+        const sc = town ? 1 : 0.85 + rng() * 0.25;
+        const matrix = town
+          ? mat(x, y - 0.3, z, rot, 1, 0.92 + rng() * 0.2, 1)
+          : mat(x, y - 0.3, z, rot, sc, 0.9 + rng() * 0.15, sc);
+        const palette = town ? TOWNHOUSE_COLORS : WALL_COLORS;
+        (town ? townhouses : houses)[vi]!.push({ matrix, color: new THREE.Color(palette[Math.floor(rng() * palette.length)]!) });
+
+        // Weg von der Tür bis an den Gehsteig bzw. Fahrbahnrand
+        doorPoint.set(variant.door.x, 0, variant.door.z).applyMatrix4(matrix);
+        const toRoadX = d.dz * side;
+        const toRoadZ = -d.dx * side;
+        const edgeOff = e.surface === 'town' ? 5.15 : e.surface === 'gravel' ? 2.4 : 3.2;
+        const remaining = off - variant.door.z * sc - edgeOff;
+        if (remaining > 1) {
+          frontPaths.push({
+            from: { x: doorPoint.x, z: doorPoint.z },
+            to: { x: doorPoint.x + toRoadX * remaining, z: doorPoint.z + toRoadZ * remaining },
           });
+        }
+        // Büsche an einer oder beiden vorderen Hausecken
+        for (const corner of [-1, 1]) {
+          if (rng() < 0.45) continue;
+          const cx = (corner * 4.6 + (rng() - 0.5)) * sc;
+          const cz = 3.9 * sc + rng() * 0.6;
+          doorPoint.set(cx, 0, cz).applyMatrix4(matrix);
+          gardenBushes.push({ matrix: mat(doorPoint.x, terrain.sample(doorPoint.x, doorPoint.z) - 0.1, doorPoint.z, rng() * 6, 0.45 + rng() * 0.3) });
         }
       }
     }
   }
-  group.add(toMesh(house(), houses), toMesh(townhouse(), townhouses), toMesh(barn(), barns));
+  const tinted = (geo: THREE.BufferGeometry, items: Instance[]) => {
+    const m = toMesh(geo, items);
+    m.material = tintedMaterial();
+    return m;
+  };
+  variants.houses.forEach((v, i) => group.add(tinted(v.geometry, houses[i]!)));
+  variants.townhouses.forEach((v, i) => group.add(tinted(v.geometry, townhouses[i]!)));
+  group.add(toMesh(barn(), barns));
+  const paths = createFrontPaths(frontPaths, terrain, mulberry32(seed ^ 0xa11e));
+  group.add(paths.group);
+  group.userData.pathLines = paths.lines;
 
   // --- Bäume, Büsche, Felsen ---------------------------------------------------------------
   const conifers: Instance[] = [];
   const leafy: Instance[] = [];
-  const bushes: Instance[] = [];
+  const bushes: Instance[] = [...gardenBushes];
   const rocks: Instance[] = [];
   const half = terrain.half;
   for (let k = 0; k < 18000; k++) {
@@ -273,7 +273,7 @@ export function createProps(
   }
 
   group.userData.counts = {
-    houses: houses.length, townhouses: townhouses.length, barns: barns.length,
+    houses: houses.flat().length, townhouses: townhouses.flat().length, barns: barns.length, paths: frontPaths.length,
     conifers: conifers.length, leafy: leafy.length, bushes: bushes.length, rocks: rocks.length,
   };
   return group;
