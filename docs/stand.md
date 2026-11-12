@@ -1,26 +1,28 @@
-# Stand: Freeride NG (Ende 11.11.2026)
+# Stand: Freeride NG (Ende 12.11.2026)
 
 Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 „Stand & offene Punkte“), die Welt in `docs/welt.md`, Arbeitsregeln in `CLAUDE.md`.
 
 ## Wo wir stehen
 
-Das **MVP ist fertig** (Phasen 1 bis 4), dazu kommt ein Detail-Durchgang. Gefahren
-wird bisher nur mit dem **Simulator**, weil das USB-Kabel für den Kettler E5 noch fehlt.
+Das **MVP ist fertig** (Phasen 1 bis 4), dazu kommen ein Detail-Durchgang und **Phase 5**
+(XP, Level, Erfolge, Segmente mit Bestzeit und Ghost). Gefahren wird bisher nur mit dem
+**Simulator**: Die Datenbuchse des E5 ist eine USB-B-Buchse an der Unterseite des Cockpits,
+und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum Laden.
 
 | Schritt | Status |
 |---|---|
-| Phase 0: Hardwaretest E5 | ⏳ offen (Kabel fehlt) |
+| Phase 0: Hardwaretest E5 | ⏳ offen (USB-A-auf-B-Kabel fehlt) |
 | Phase 1: Setup, Gerätetreiber, Simulator, Debug-Seite | ✅ |
 | Phase 2: Ride-Engine (Physik, virtuelle Gänge, Zielwatt) | ✅ |
 | Phase 3: 3D-Welt Velara (Gelände, Wegenetz, Fahrer) | ✅ |
 | Fahrgefühl entschärft + Simulator-Fix + Testanzeige | ✅ |
 | Phase 4: Richtungswahl, Karte mit Nebel, Sammeln, Speichern | ✅ |
 | Detail-Durchgang (Weinberge, Häuser, Kirche, Hafen …) | ✅ |
-| Phase 5: Fortschritt und Herausforderungen | ⏭ als Nächstes |
+| Phase 5: XP, Level, Erfolge, Segmente, Ghost | ✅ (ohne Räder/Outfits/Gebiete) |
+| Phase 6: Welt ausbauen | ⏭ als Nächstes |
 
-Qualität: 144 Tests grün (einer wartet auf echte E5-Daten), Typecheck, Lint und Build fehlerfrei,
-7 Commits auf `main`.
+Qualität: 161 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -32,6 +34,7 @@ npm test             # Tests
 
 - Spiel: `/` · Debug-Seite für das Gerät: `/debug.html`
 - Schnelltest ohne Menü: `/?demo` (speichert nie), z.B. `/?demo&edge=weinberg-s&s=120`
+- Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
 
 ## Steuerung
 
@@ -54,12 +57,16 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
   Startgang 7 von 13 ≈ 20 km/h bei 85 U/min ≈ 55 W in der Ebene.
 - **Sicherheit** (`src/device/powerLimiter.ts`): Treiber erzwingt 25–300 W, 5-W-Raster,
   max. +20 W/s. Pause, Tab-Wechsel und Trennen setzen sofort auf das Minimum.
+- **Fortschritt** (`src/world/progression.ts`): XP-Werte in `XP`, Erfolge in `ACHIEVEMENTS`,
+  Levelkurve `xpForNextLevel`. Segmente in `MVP_SEGMENTS` (`src/world/segments.ts`) als Knotenfolge.
 - **Welt** (`src/world/`): Seed `20261111`, Gelände per Noise, Wegenetz von Hand
   in `roadLayout.ts` (19,5 km, max. 10 %).
 
 ## Offene Punkte
 
 **Wenn das USB-Kabel da ist (Phase 0):**
+0. USB-A-auf-B-Kabel an die Buchse **unten** am Cockpit. Prüfen, ob `/dev/ttyUSB0` oder `/dev/ttyACM0`
+   erscheint (`lsusb`, `journalctl -k`), ggf. Benutzer in die Gruppe `dialout`
 1. Debug-Seite → „Kettler E5 (USB)“ → Befehle `ID`, `VE`, `ST`, `RS` senden, Zielwatt über den Regler
 2. „Mitschnitt speichern“, echte ST-Zeilen nach `tests/fixtures/st-lines.e5.txt`
 3. Einheiten im Parser prüfen (Tempo ×10? Distanz in 100 m?), Antworten auf `CM`/`PW`,
@@ -76,15 +83,18 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Dorfstraße liegt im Einschnitt, die Weinberge sieht man von dort kaum
 - Namen der Regionen sind noch Arbeitstitel
 
-## Nächster Schritt: Phase 5
+**Phase 5 selbst prüfen:**
+- Segmente fahren und eine Bestzeit setzen, dann den Ghost beim zweiten Versuch ansehen
+- Passen XP-Werte und Levelkurve zum Gefühl? (Werte in `XP` und `xpForNextLevel`)
+
+## Nächster Schritt: Phase 6
 
 Startprompt für die neue Session:
 
 ```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 5. Plane und baue Fortschritt und
-Herausforderungen: Erfahrungspunkte für Kilometer, Höhenmeter und Entdecktes, Level,
-Achievements; Segmente (Sprintzone Promenade, Bergwertung Kapellenanstieg, Zeitfahren)
-mit Bestzeiten; Ghost-Fahrer der eigenen Bestfahrt. Alles im Spielstand speichern.
+Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Plane den Ausbau der Welt: neue Gebiete
+hinter den Schranken (Hafenbrücke, Passweg) als Freischaltung über Level, dazu
+freischaltbare Trikotfarben. Danach Performance (Instancing, LOD) und Tag-Nacht-Wechsel.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

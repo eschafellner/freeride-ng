@@ -250,3 +250,59 @@ button.link { background: none; border: none; color: #8cc4ff; padding: 0; text-d
 .tp-bar::after { content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: rgba(255, 255, 255, 0.6); }
 .tp-bar i { position: absolute; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; }
 .tp-keys { color: var(--hud-muted); font-size: 0.72rem; }
+
+/* --- Phase 5: Level, Segmente, Erfolge ------------------------------------ */
+
+.m.level span { color: #ffd23f; }
+.xpbar {
+  flex-basis: 100%;
+  position: relative;
+  height: 14px;
+  margin-top: -6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.xpbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, #f0a202, #ffd23f); transition: width 0.4s; }
+.xpbar small { position: relative; display: block; text-align: center; font-size: 0.68rem; line-height: 14px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+
+.segment {
+  position: absolute;
+  left: 16px;
+  top: 42%;
+  min-width: 230px;
+  background: var(--hud-bg);
+  border-radius: 12px;
+  border-left: 5px solid var(--seg-color, var(--accent));
+  padding: 10px 14px;
+  backdrop-filter: blur(4px);
+  font-variant-numeric: tabular-nums;
+}
+.segment[hidden] { display: none; }
+.segment .seg-kind { font-size: 0.72rem; color: var(--hud-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.segment .seg-name { font-weight: 600; margin-bottom: 4px; }
+.segment .seg-time { font-size: 1.9rem; font-weight: 700; }
+.segment .seg-row { display: flex; justify-content: space-between; gap: 12px; font-size: 0.85rem; }
+.segment .seg-row span { color: var(--hud-muted); }
+.segment .ahead { color: #69db7c; }
+.segment .behind { color: #ff8787; }
+.segment .seg-progress { height: 4px; background: rgba(255, 255, 255, 0.15); border-radius: 2px; margin-top: 6px; position: relative; }
+.segment .seg-progress i { position: absolute; inset: 0 auto 0 0; background: var(--seg-color, var(--accent)); border-radius: 2px; }
+.segment .seg-progress b { position: absolute; top: -3px; width: 3px; height: 10px; background: #9fd3ff; border-radius: 1px; }
+
+.bigmap-info { max-height: calc(100vh - 32px); overflow-y: auto; }
+.bigmap-info h3 { margin: 16px 0 6px; font-size: 0.95rem; }
+.bigmap-segments { display: grid; grid-template-columns: auto auto; gap: 3px 14px; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.bigmap-segments .label { color: var(--hud-muted); }
+.bigmap-segments i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.achievements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 0.8rem; max-width: 280px; }
+.achievements li { color: var(--hud-muted); opacity: 0.55; }
+.achievements li.done { color: var(--hud-text); opacity: 1; }
+.achievements li b { margin-right: 4px; }
+.legend i.seg { height: 4px; border-radius: 2px; vertical-align: 3px; }
+.legend i.seg.sprint { background: #2fb344; }
+.legend i.seg.climb { background: #d6336c; }
+.legend i.seg.tt { background: #1c7ed6; }
+.toast.level { border-color: #f0a202; font-size: 1.1rem; }
+.toast.segment-ok { border-color: #2fb344; }
+.toast.segment-bad { border-color: #868e96; }

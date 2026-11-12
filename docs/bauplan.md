@@ -120,6 +120,8 @@ Lies CLAUDE.md und Bauplan Phase 4. Erweitere die Welt zu einer kleinen Insel mi
 - Segmente: Sprintzonen, Bergwertungen, Zeitfahren mit Bestzeiten
 - Ghost-Fahrer: die eigene Bestfahrt als Schatten
 
+Umgesetzt am 12.11.2026 bis auf die freischaltbaren Räder, Outfits und Gebiete (siehe „Stand & offene Punkte“).
+
 ### Phase 6: Welt ausbauen
 
 **Ergebnis:** Eine größere, lebendige Welt, die auch auf schwächerer Hardware flüssig läuft.
@@ -217,6 +219,22 @@ Diese Punkte klären wir vor Phase 1 oder spätestens vor der jeweiligen Phase. 
 **11.11.2026, Phase 4 umgesetzt (MVP komplett):** Richtungswahl an Kreuzungen mit ←/→ oder Gamepad (Anzeige ab 160 m vor der Kreuzung, Ziele zeigen auf den nächsten benannten Ort), ↓ für eine Kehrtwende. Minimap und große Karte (`M`) mit Erkundungsnebel, 15 Kristalle, 4 Aussichtspunkte und Ortsschilder. Der Spielstand liegt in IndexedDB (Autosave alle 10 s, bei Pause und Ereignissen) und kann im Menü mit „Neu beginnen“ gelöscht werden. Im Modus `?demo` wird nichts geladen oder gespeichert. 133 Tests grün.
 
 **11.11.2026, Fix Simulator:** „Stärker treten“ war unbegrenzt und lag auf A/D, wo man intuitiv lenkt. Gedrückt gehaltene Tasten trieben die Leistung so auf über 1000 W. Jetzt gilt: Trittstärke auf R/F, begrenzt auf ±100 W, ohne Tastenwiederholung, und unter 40 U/min bricht die Leistung ein wie beim echten Ergometer. A/D wählen jetzt die Richtung. Neu ist eine Testanzeige (`T`).
+
+**12.11.2026, Phase 0 versucht:** Das Kabel steckte zuerst in der USB-A-Buchse oben am Cockpit. Die ist nur zum Laden da, der PC hat dort nichts erkannt. Die Datenschnittstelle des E5 ist eine **versteckte USB-B-Buchse an der Unterseite des Cockpits**. Dafür braucht es ein USB-A-auf-B-Kabel („Druckerkabel“), das noch fehlt. Unter Fedora ist der Benutzer noch nicht in der Gruppe `dialout`. Das prüfen, sobald `/dev/ttyUSB*` oder `/dev/ttyACM*` auftaucht.
+
+**12.11.2026, Phase 5 umgesetzt (ohne freischaltbare Räder, Outfits und Gebiete):**
+- Segmente (`src/world/segments.ts`): Sprintzone Promenade (Hafenplatz → Ostkai), Bergwertung Kapellenanstieg (→ Kapelle), Zeitfahren Weinbergrunde (Rebdorf → Weinberge → Rebdorf, Rundkurs). Die Zeitnahme läuft von Knoten zu Knoten und wird auf den genauen Überfahrpunkt interpoliert. Abbiegen oder Kehrtwende brechen den Versuch ab, Pause hält die Uhr an
+- Bestzeiten mit Ghost: Die Bestfahrt wird alle 0,5 s aufgezeichnet und beim nächsten Versuch als halbtransparenter Fahrer gezeigt. Das HUD zeigt Zeit, Abstand zur Bestzeit (±s), Reststrecke und den Ghost auf dem Fortschrittsbalken
+- Start- und Zielbögen in Segmentfarbe stehen 8 m hinter bzw. vor den Knoten, die Uhr läuft ab dem Knoten. Auf Mini- und Großkarte sind die Segmente farbig eingezeichnet, aber nur dort, wo schon erkundet
+- XP und Level (`src/world/progression.ts`): 20 XP/km, 2 XP/Hm, 50 pro Kristall, 100 pro Aussichtspunkt, 20 pro % Erkundung, dazu Segment-Bonus und Erfolge. Die XP werden aus dem Spielstand abgeleitet, gespeichert wird nur der Segment-Bonus. Level-Schritt: 150 + 50 × Level
+- 21 Erfolge (Strecke, Höhenmeter, Fahrzeit, Kristalle, Aussichtspunkte, Erkundung, Segmente, Bestzeit verbessert). Ältere Spielstände bekommen sie beim Start nachgetragen
+- Der Spielstand bleibt `version: 1`, die neuen Felder (`achievements`, `bonusXp`, `segments`) werden bei alten Ständen ergänzt. 161 Tests grün
+
+Offen aus Phase 5:
+
+- [ ] Freischaltbare Räder und Outfits (z. B. Trikotfarben ab bestimmten Leveln), neue Gebiete hinter den Schranken (Hafenbrücke, Passweg). Gehört sinnvoll zu Phase 6, wenn es dort neue Gebiete gibt
+- [ ] Zielzeiten für die Segmente am echten Rad prüfen, ggf. Erfolge mit Zeitlimit ergänzen
+- [ ] Mehr Segmente, z. B. eine Bergwertung auf der Passstraße und ein längeres Zeitfahren
 
 **11.11.2026, Detail-Durchgang umgesetzt:**
 - Landschaft: Weinberge im Rebland (rund 1.400 Rebzeilen entlang der Höhenlinien), Felder als Flickenteppich im Flachland, Laub- und Nadelwald je nach Höhe, Büsche, Felsen an steilen Hängen

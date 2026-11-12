@@ -9,13 +9,20 @@ import { FogGrid } from '../world/exploration';
 import { JunctionSelector } from '../world/junction';
 import { resolvePois } from '../world/pois';
 import { GameProgress, type ProgressEvent } from '../world/progress';
+import {
+  ACHIEVEMENTS, levelFor, newAchievements, segmentXp, totalXp, type PlayerStats,
+} from '../world/progression';
+import {
+  formatSegmentTime, pointOnSegment, resolveSegments, SEGMENT_KIND_LABEL, SegmentTracker, type SegmentEvent,
+} from '../world/segments';
 import { RiderOnNetwork } from '../world/rider';
 import { sanitizeSave, type SaveData } from '../world/saveGame';
 import { createWorld } from '../world/world';
 import { CameraRig } from './cameraRig';
 import { Input, type Action } from './input';
-import { WorldMap } from './minimap';
-import { JUNCTION_SHOW_DISTANCE, JunctionHud, Toasts } from './overlays';
+import { WorldMap, type MapRoute } from './minimap';
+import { escapeHtml, formatDelta, JUNCTION_SHOW_DISTANCE, JunctionHud, SegmentHud, Toasts } from './overlays';
+import { createSegmentMarkers, SEGMENT_COLOR } from './segmentMarkers';
 import { PoiMeshes } from './poiMeshes';
 import { createDetails } from './details';
 import { createLandmarks } from './landmarks';
@@ -47,6 +54,11 @@ async function main() {
   const pois = resolvePois(world.roads);
   const fog = new FogGrid(world.terrain.size, 20, save?.fog);
   const progress = new GameProgress(pois, save ?? undefined);
+  const segments = resolveSegments(world.roads);
+  const tracker = new SegmentTracker(segments, save?.segments);
+  const knownAchievements = new Set(ACHIEVEMENTS.map((a) => a.id));
+  const unlocked = new Set((save?.achievements ?? []).filter((id) => knownAchievements.has(id)));
+  let bonusXp = save?.bonusXp ?? 0;
 
   const { renderer, scene, camera, sun } = createScene($<HTMLCanvasElement>('scene'));
   scene.add(createTerrainMesh(world.terrain, world.roads, world.seed));
@@ -58,6 +70,12 @@ async function main() {
   scene.add(createDetails(world.terrain, world.roads, world.seed));
   const poiMeshes = new PoiMeshes(pois, world.terrain, progress.collected);
   scene.add(poiMeshes.group);
+  scene.add(createSegmentMarkers(segments));
+  const segmentRoutes: MapRoute[] = segments.map((seg) => {
+    const points: { x: number; z: number }[] = [];
+    for (let d = 0; d <= seg.length; d += 10) points.push(pointOnSegment(seg, d));
+    return { color: SEGMENT_COLOR[seg.kind], points };
+  });
 
   // Demo: Startpunkt per URL wählbar (?edge=…&s=…&dir=-1), für Screenshots und Tests
   const demoEdge = demo ? params.get('edge') : null;
@@ -77,6 +95,10 @@ async function main() {
 
   const model = new RiderModel();
   scene.add(model.root);
+  /** Ghost: die eigene Bestfahrt im laufenden Segment. */
+  const ghost = new RiderModel().makeGhost();
+  ghost.root.visible = false;
+  scene.add(ghost.root);
   const rig = new CameraRig(camera, world.terrain);
 
   const worldMap = new WorldMap(world.terrain, world.roads, fog, pois);
@@ -87,13 +109,19 @@ async function main() {
   const bigmapCtx = bigmapCanvas.getContext('2d')!;
   const junctionHud = new JunctionHud($('junction'));
   const toasts = new Toasts($('toasts'));
+  const segmentHud = new SegmentHud($('segment'));
   const input = new Input();
 
-  // Landzellen für den Erkundungsanteil (Meer zählt nicht)
-  const landCells = (i: number, j: number) => {
-    const half = world.terrain.half;
-    return world.terrain.sample(-half + (i + 0.5) * fog.cellSize, -half + (j + 0.5) * fog.cellSize) > 0;
-  };
+  // Landzellen für den Erkundungsanteil (Meer zählt nicht), einmal vorberechnet
+  const landMask = new Uint8Array(fog.res * fog.res);
+  for (let j = 0; j < fog.res; j++) {
+    for (let i = 0; i < fog.res; i++) {
+      const half = world.terrain.half;
+      landMask[j * fog.res + i] =
+        world.terrain.sample(-half + (i + 0.5) * fog.cellSize, -half + (j + 0.5) * fog.cellSize) > 0 ? 1 : 0;
+    }
+  }
+  const landCells = (i: number, j: number) => landMask[j * fog.res + i] === 1;
 
   // --- Fahrerposition -----------------------------------------------------------
 
@@ -128,6 +156,9 @@ async function main() {
       collected: [...progress.collected],
       viewpoints: [...progress.viewpoints],
       fog: fog.cells.slice(),
+      achievements: [...unlocked],
+      bonusXp,
+      segments: Object.fromEntries(tracker.records),
     };
   }
 
@@ -142,7 +173,8 @@ async function main() {
     $('save-info').hidden = false;
     $('save-text').textContent =
       `Spielstand: ${(save.totals.distance / 1000).toFixed(1)} km, ` +
-      `${progress.collectedCount}/${progress.collectibleTotal} Kristalle`;
+      `${progress.collectedCount}/${progress.collectibleTotal} Kristalle, ` +
+      `Level ${levelFor(currentXp()).level}`;
   }
   $('new-game').addEventListener('click', async () => {
     if (!confirm('Spielstand löschen und neu beginnen?')) return;
@@ -207,7 +239,11 @@ async function main() {
     lastDistance = engine.state().distance;
     menu.hidden = true;
     estopBtn.hidden = false;
-    if (save) toasts.show('Willkommen zurück', 'Spielstand geladen');
+    if (save) {
+      const lvl = levelFor(currentXp()).level;
+      toasts.show('Willkommen zurück', `Spielstand geladen · Level ${lvl}`);
+      if (retroactive > 0) toasts.show(`${retroactive} Erfolge nachgetragen`, 'für deine bisherigen Fahrten', 'gold');
+    }
   }
 
   function pause(title = 'Pause', text = 'Widerstand ist auf dem Minimum.') {
@@ -311,12 +347,122 @@ async function main() {
     }
   }
 
+  // --- Erfahrung, Erfolge, Segmente -----------------------------------------------
+
+  function stats(): PlayerStats {
+    const st = engine.state();
+    return {
+      distance: st.distance,
+      elevationGain: st.elevationGain,
+      timeSec: st.timeSec,
+      collected: progress.collectedCount,
+      collectibleTotal: progress.collectibleTotal,
+      viewpoints: progress.viewpointCount,
+      viewpointTotal: progress.viewpointTotal,
+      explored: fog.fraction(landCells),
+      segments: tracker.records,
+    };
+  }
+
+  function currentXp(s = stats()): number {
+    return totalXp(s, unlocked, bonusXp);
+  }
+
+  let shownLevel = levelFor(currentXp()).level;
+
+  /** Beim Laden nachgetragene Erfolge (ältere Spielstände), werden beim Start gemeldet. */
+  let retroactive = 0;
+
+  /**
+   * Prüft Erfolge und Levelaufstieg (etwa einmal pro Sekunde und nach Ereignissen).
+   * @param silent ohne Meldungen (beim Laden)
+   */
+  function checkProgression(silent = false) {
+    const s = stats();
+    for (const a of newAchievements(s, unlocked)) {
+      unlocked.add(a.id);
+      dirty = true;
+      if (silent) retroactive++;
+      else toasts.show(`Erfolg: ${a.name}`, `${a.text} · +${a.xp} XP`, 'gold');
+    }
+    const lvl = levelFor(currentXp(s));
+    if (lvl.level > shownLevel && !silent) {
+      toasts.show(`Level ${lvl.level} erreicht!`, '', 'level');
+      saveNow();
+    }
+    shownLevel = lvl.level;
+    hud.level.textContent = String(lvl.level);
+    hud.xpbar.style.width = `${((lvl.into / lvl.needed) * 100).toFixed(1)}%`;
+    hud.xp.textContent = `${lvl.into} / ${lvl.needed} XP`;
+  }
+
+  function onSegment(ev: SegmentEvent) {
+    const seg = ev.segment;
+    const label = `${SEGMENT_KIND_LABEL[seg.kind]} ${seg.name}`;
+    switch (ev.type) {
+      case 'segmentStart':
+        toasts.show(label, ev.best === null ? 'Erste Fahrt – los!' : `Bestzeit ${formatSegmentTime(ev.best)} · Ghost fährt mit`);
+        break;
+      case 'segmentFinish': {
+        const first = ev.previousBest === null;
+        const xp = segmentXp(ev.newBest, first);
+        bonusXp += xp;
+        const time = formatSegmentTime(ev.time);
+        if (first) toasts.show(`${label}: ${time}`, `Erste Bestzeit · +${xp} XP`, 'segment-ok');
+        else if (ev.newBest) toasts.show(`Neue Bestzeit: ${time}`, `${label} · ${formatDelta(ev.time - ev.previousBest!)} · +${xp} XP`, 'gold');
+        else toasts.show(`${label}: ${time}`, `Bestzeit ${formatSegmentTime(ev.previousBest!)} · ${formatDelta(ev.time - ev.previousBest!)} · +${xp} XP`, 'segment-ok');
+        dirty = true;
+        checkProgression();
+        saveNow();
+        break;
+      }
+      case 'segmentAbort':
+        toasts.show(`${label} abgebrochen`, 'Strecke verlassen', 'segment-bad');
+        break;
+    }
+  }
+
+  // Zeitnahme an Knoten: Zeit und Strecke auf den genauen Überfahrpunkt interpolieren
+  const stepInfo = { t0: 0, t1: 0, d0: 0, ds: 0, active: false };
+  rider.onNode = (node, exit, travelled) => {
+    if (!stepInfo.active) return;
+    const f = stepInfo.ds > 0 ? Math.min(1, travelled / stepInfo.ds) : 1;
+    const t = stepInfo.t0 + (stepInfo.t1 - stepInfo.t0) * f;
+    for (const ev of tracker.onNode(node.id, { edgeId: exit.edge.id, dir: exit.dir }, t, stepInfo.d0 + travelled)) onSegment(ev);
+  };
+  rider.onReverse = () => {
+    for (const ev of tracker.onReverse()) onSegment(ev);
+  };
+
+  const ghostPos = new THREE.Vector3();
+  let ghostLastD = 0;
+  function placeGhost(dt: number, runs: ReturnType<SegmentTracker['runs']>) {
+    const run = runs.find((r) => r.ghostDistance !== null);
+    if (!run || run.ghostDistance === null) {
+      ghost.root.visible = false;
+      return;
+    }
+    const d = run.ghostDistance;
+    const p = pointOnSegment(run.segment, d);
+    const ahead = pointOnSegment(run.segment, Math.min(run.segment.length, d + 3));
+    // Ghost fährt etwas weiter links als der Fahrer, damit beide sichtbar sind
+    ghostPos.set(p.x - p.dz * (LANE_OFFSET - 1.4), p.y + 0.12, p.z + p.dx * (LANE_OFFSET - 1.4));
+    ghost.root.position.copy(ghostPos);
+    const run3 = Math.hypot(ahead.x - p.x, ahead.z - p.z) || 1;
+    ghost.root.rotation.set(-Math.atan((ahead.y - p.y) / run3), Math.atan2(p.dx, p.dz), 0, 'YXZ');
+    const speed = dt > 0 && ghost.root.visible ? Math.max(0, (d - ghostLastD) / dt) : 0;
+    ghostLastD = d;
+    ghost.animate(dt, speed, speed > 0.5 ? 85 : 0);
+    ghost.root.visible = d < run.segment.length;
+  }
+
   // --- HUD und Karten ------------------------------------------------------------------
 
   const hud = {
     power: $('h-power'), speed: $('h-speed'), cadence: $('h-cadence'), hr: $('h-hr'),
     grade: $('h-grade'), gear: $('h-gear'), target: $('h-target'),
     dist: $('h-dist'), elev: $('h-elev'), time: $('h-time'), road: $('h-road'), gems: $('h-gems'),
+    level: $('h-level'), xpbar: $('h-xpbar'), xp: $('h-xp'),
   };
 
   const fmtTime = (sec: number) => {
@@ -389,7 +535,7 @@ async function main() {
     worldMap.draw(
       minimapCtx, w, w,
       { cx: riderPos.x, cz: riderPos.z, metersAcross: MINIMAP_METERS },
-      riderInfo(), progress.collected, progress.viewpoints,
+      riderInfo(), progress.collected, progress.viewpoints, segmentRoutes,
     );
     minimapCtx.restore();
   }
@@ -406,7 +552,7 @@ async function main() {
     worldMap.draw(
       bigmapCtx, px, px,
       { cx: 0, cz: 0, metersAcross: world.terrain.size },
-      riderInfo(), progress.collected, progress.viewpoints,
+      riderInfo(), progress.collected, progress.viewpoints, segmentRoutes,
     );
     const s = engine.state();
     const explored = Math.round(fog.fraction(landCells) * 100);
@@ -417,7 +563,18 @@ async function main() {
       ['Strecke', `${(s.distance / 1000).toFixed(1)} km`],
       ['Höhenmeter', `${Math.round(s.elevationGain)} m`],
       ['Fahrzeit', fmtTime(s.timeSec)],
+      ['Level', `${levelFor(currentXp()).level} (${currentXp()} XP)`],
     ].map(([k, v]) => `<span class="label">${k}</span><span>${v}</span>`).join('');
+    $('bigmap-segments').innerHTML = segments.map((seg) => {
+      const r = tracker.record(seg.id);
+      const best = r.best === null ? '–' : `${formatSegmentTime(r.best)} (${r.runs}×)`;
+      return `<span class="label"><i style="background:${SEGMENT_COLOR[seg.kind]}"></i>${SEGMENT_KIND_LABEL[seg.kind]} ${escapeHtml(seg.name)}</span><span>${best}</span>`;
+    }).join('');
+    $('bigmap-ach-title').textContent = `Erfolge ${unlocked.size} / ${ACHIEVEMENTS.length}`;
+    $('bigmap-achievements').innerHTML = ACHIEVEMENTS.map((a) => {
+      const done = unlocked.has(a.id);
+      return `<li class="${done ? 'done' : ''}"><b>${done ? '★' : '☆'}</b>${escapeHtml(a.name)} – ${escapeHtml(a.text)}</li>`;
+    }).join('');
   }
   window.addEventListener('resize', () => {
     if (!bigmap.hidden) drawBigMap();
@@ -429,7 +586,9 @@ async function main() {
   let hudTimer = 0;
   let mapTimer = 0;
   let saveTimer = 0;
+  let progressTimer = 0;
   placeRider(1);
+  checkProgression(true);
   fog.reveal(riderPos.x, riderPos.z, REVEAL_RADIUS);
   worldMap.syncFog();
 
@@ -440,8 +599,12 @@ async function main() {
 
     let state = engine.state();
     if (session) {
+      const t0 = state.timeSec;
       state = session.advance(dt);
-      rider.advance(Math.max(0, state.distance - lastDistance));
+      const ds = Math.max(0, state.distance - lastDistance);
+      Object.assign(stepInfo, { t0, t1: state.timeSec, d0: lastDistance, ds, active: true });
+      rider.advance(ds);
+      stepInfo.active = false;
       lastDistance = state.distance;
     }
 
@@ -455,6 +618,12 @@ async function main() {
     if (session && !session.isPaused) {
       if (fog.reveal(riderPos.x, riderPos.z, REVEAL_RADIUS) > 0) dirty = true;
       for (const ev of progress.update(rider.position, state.timeSec)) onProgress(ev);
+      tracker.update(state.timeSec, state.distance);
+      progressTimer += dt;
+      if (progressTimer > 1) {
+        progressTimer = 0;
+        checkProgression();
+      }
       saveTimer += dt;
       if (saveTimer > AUTOSAVE_SEC) {
         saveTimer = 0;
@@ -462,12 +631,16 @@ async function main() {
       }
     }
     junctionHud.update(rider, selector);
+    const runs = tracker.runs();
+    placeGhost(dt, runs);
 
     hudTimer += dt;
     if (hudTimer > 0.1) {
       hudTimer = 0;
       updateHud(state);
       updateTestPanel(state);
+      const run = runs[0];
+      segmentHud.update(run, run ? tracker.record(run.segment.id).best : null);
     }
     mapTimer += dt;
     if (mapTimer > 1 / 15) {

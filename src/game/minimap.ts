@@ -18,6 +18,12 @@ const ROAD_STYLE = {
  * vorgerendert; der Nebel liegt als kleines Bild darüber und wird beim
  * Aufdecken nur zellweise aktualisiert.
  */
+/** Linienzug, der auf der Karte farbig hervorgehoben wird. */
+export interface MapRoute {
+  color: string;
+  points: { x: number; z: number }[];
+}
+
 export class WorldMap {
   private readonly base: HTMLCanvasElement;
   private readonly fogCanvas: HTMLCanvasElement;
@@ -71,6 +77,7 @@ export class WorldMap {
     rider: { x: number; z: number; dx: number; dz: number },
     collected: Set<string>,
     viewpoints: Set<string>,
+    routes: MapRoute[] = [],
   ): void {
     const scale = width / view.metersAcross; // px pro m
     const half = this.terrain.half;
@@ -83,6 +90,26 @@ export class WorldMap {
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(this.base, toX(-half), toY(-half), this.terrain.size * scale, this.terrain.size * scale);
     ctx.drawImage(this.fogCanvas, toX(-half), toY(-half), this.terrain.size * scale, this.terrain.size * scale);
+
+    // Hervorgehobene Strecken (Segmente), nur dort, wo schon erkundet
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const r of routes) {
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = Math.max(2.5, 5 * Math.min(1, scale * 2));
+      ctx.beginPath();
+      let pen = false;
+      for (const p of r.points) {
+        if (!this.fog.isRevealed(p.x, p.z)) {
+          pen = false;
+          continue;
+        }
+        if (pen) ctx.lineTo(toX(p.x), toY(p.z));
+        else ctx.moveTo(toX(p.x), toY(p.z));
+        pen = true;
+      }
+      ctx.stroke();
+    }
 
     // Punkte nur in erkundeten Bereichen
     for (const p of this.pois) {

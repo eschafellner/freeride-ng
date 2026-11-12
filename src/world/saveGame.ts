@@ -1,3 +1,4 @@
+import { emptyRecord, type SegmentRecord } from './segments';
 import type { World } from './world';
 
 /** Spielstand. Wird in IndexedDB gespeichert (strukturiertes Klonen, kein JSON nötig). */
@@ -11,6 +12,27 @@ export interface SaveData {
   collected: string[];
   viewpoints: string[];
   fog: Uint8Array;
+  /** Phase 5: freigeschaltete Erfolge. */
+  achievements: string[];
+  /** Phase 5: Bonus-XP aus Segmentfahrten (der Rest wird abgeleitet). */
+  bonusXp: number;
+  /** Phase 5: Bestzeiten und Ghosts je Segment. */
+  segments: Record<string, SegmentRecord>;
+}
+
+function sanitizeRecord(v: unknown): SegmentRecord | null {
+  if (!v || typeof v !== 'object') return null;
+  const r = v as Partial<SegmentRecord>;
+  const rec = emptyRecord();
+  const count = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0);
+  rec.runs = count(r.runs);
+  rec.improvements = count(r.improvements);
+  if (typeof r.best === 'number' && Number.isFinite(r.best) && r.best > 0) {
+    rec.best = r.best;
+    rec.runs = Math.max(1, rec.runs);
+    if (r.ghost instanceof Float32Array && r.ghost.length > 0) rec.ghost = r.ghost;
+  }
+  return rec;
 }
 
 /**
@@ -51,5 +73,12 @@ export function sanitizeSave(raw: unknown, world: World): SaveData | null {
     collected: strings(s.collected),
     viewpoints: strings(s.viewpoints),
     fog: s.fog instanceof Uint8Array ? s.fog : new Uint8Array(0),
+    achievements: strings(s.achievements),
+    bonusXp: num(s.bonusXp),
+    segments: Object.fromEntries(
+      Object.entries(s.segments && typeof s.segments === 'object' ? s.segments : {})
+        .map(([id, r]) => [id, sanitizeRecord(r)] as const)
+        .filter((e): e is [string, SegmentRecord] => e[1] !== null),
+    ),
   };
 }

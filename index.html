@@ -24,7 +24,10 @@
         <div class="m"><span id="h-elev">0</span><small>Hm</small></div>
         <div class="m"><span id="h-time">0:00</span><small>Zeit</small></div>
         <div class="m"><span id="h-gems">0/15</span><small>Kristalle</small></div>
+        <div class="m level"><span id="h-level">1</span><small>Level</small></div>
+        <div class="xpbar" title="Erfahrung"><i id="h-xpbar"></i><small id="h-xp"></small></div>
       </div>
+      <div id="segment" class="segment" hidden></div>
       <div id="h-road" class="road-name"></div>
       <canvas id="minimap" class="minimap" width="200" height="200"></canvas>
       <div id="junction" class="junction" hidden></div>
@@ -53,10 +56,17 @@
       <div class="bigmap-info">
         <h2>Velara</h2>
         <div id="bigmap-stats"></div>
+        <h3>Herausforderungen</h3>
+        <div id="bigmap-segments" class="bigmap-segments"></div>
+        <h3 id="bigmap-ach-title">Erfolge</h3>
+        <ul id="bigmap-achievements" class="achievements"></ul>
         <div class="legend">
           <span><i class="gem"></i> Kristall</span>
           <span><i class="vp"></i> Aussichtspunkt</span>
           <span><i class="vp done"></i> entdeckt</span>
+          <span><i class="seg sprint"></i> Sprintzone</span>
+          <span><i class="seg climb"></i> Bergwertung</span>
+          <span><i class="seg tt"></i> Zeitfahren</span>
         </div>
         <p class="hint"><kbd>M</kbd> schließen</p>
       </div>

@@ -31,8 +31,14 @@ export class RiderOnNetwork {
   /** Zuletzt passierter Knoten. */
   lastNode: RoadNode | null = null;
   chooser: ExitChooser = straightest;
-  /** Wird bei jedem passierten Knoten aufgerufen. */
-  onNode: ((node: RoadNode, next: Exit) => void) | null = null;
+  /**
+   * Wird bei jedem passierten Knoten aufgerufen.
+   * `travelled`: Strecke innerhalb des laufenden `advance`-Aufrufs bis zum Knoten
+   * (für genaue Zeitnahme an Segmentgrenzen).
+   */
+  onNode: ((node: RoadNode, next: Exit, travelled: number) => void) | null = null;
+  /** Wird bei einer Kehrtwende aufgerufen. */
+  onReverse: (() => void) | null = null;
 
   constructor(
     readonly network: RoadNetwork,
@@ -91,11 +97,13 @@ export class RiderOnNetwork {
   /** Kehrtwende auf der Stelle. */
   reverse(): void {
     this._dir = (-this._dir) as 1 | -1;
+    this.onReverse?.();
   }
 
   /** Bewegt den Fahrer um ds Meter (≥ 0) entlang des Netzes. */
   advance(ds: number): void {
-    let remaining = Math.max(0, ds);
+    const total = Math.max(0, ds);
+    let remaining = total;
     // Schutz gegen Endlosschleifen bei entarteten Kanten
     for (let guard = 0; guard < 64 && remaining > 0; guard++) {
       const toNode = this.distanceToNode;
@@ -107,7 +115,7 @@ export class RiderOnNetwork {
       const node = this.nextNode;
       const exit = this.chooser(node, this.exitsAt(node));
       this.lastNode = node;
-      this.onNode?.(node, exit);
+      this.onNode?.(node, exit, total - remaining);
       this._edge = exit.edge;
       this._dir = exit.dir;
       this._s = exit.dir === 1 ? 0 : exit.edge.length;

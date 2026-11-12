@@ -110,6 +110,20 @@ export class RiderModel {
     });
   }
 
+  /** Halbtransparente Darstellung für den Ghost-Fahrer (ohne Schatten). */
+  makeGhost(color = '#9fd3ff', opacity = 0.45): this {
+    const mat = new THREE.MeshLambertMaterial({
+      color, transparent: true, opacity, depthWrite: false, flatShading: true,
+    });
+    this.root.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.material = mat;
+        o.castShadow = false;
+      }
+    });
+    return this;
+  }
+
   /**
    * @param speed Tempo in m/s (dreht die Räder)
    * @param cadence Trittfrequenz in U/min (dreht die Kurbel)
