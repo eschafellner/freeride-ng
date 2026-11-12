@@ -21,9 +21,13 @@ export interface GraphicsSettings {
   /** Umgebungsverdeckung (Kontaktschatten). */
   ao: boolean;
   bloom: boolean;
+  /** Aussehen der Anzeige (keine Grafiklast, wird von Voreinstellungen nicht verändert). */
+  hud: HudStyle;
 }
 
-export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset'>> = {
+export type HudStyle = 'standard' | 'radcomputer';
+
+export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud'>> = {
   niedrig: { pixelRatio: 1, shadowMapSize: 1024, grassDistance: 0, grassDensity: 4, waveCell: 0, ao: false, bloom: false },
   mittel: { pixelRatio: 1.5, shadowMapSize: 2048, grassDistance: 70, grassDensity: 6, waveCell: 16, ao: false, bloom: false },
   hoch: { pixelRatio: 2, shadowMapSize: 4096, grassDistance: 120, grassDensity: 9, waveCell: 8, ao: true, bloom: true },
@@ -45,8 +49,8 @@ export const LIMITS = {
   waveCell: [0, 16, 8] as const,
 };
 
-export function presetSettings(level: QualityLevel): GraphicsSettings {
-  return { preset: level, ...PRESETS[level] };
+export function presetSettings(level: QualityLevel, hud: HudStyle = 'standard'): GraphicsSettings {
+  return { preset: level, ...PRESETS[level], hud };
 }
 
 const KEY = 'freeride-ng.graphics';
@@ -71,13 +75,15 @@ export function sanitizeSettings(raw: unknown): GraphicsSettings {
     waveCell: oneOf(r.waveCell, LIMITS.waveCell, base.waveCell as 16),
     ao: typeof r.ao === 'boolean' ? r.ao : base.ao,
     bloom: typeof r.bloom === 'boolean' ? r.bloom : base.bloom,
+    hud: r.hud === 'radcomputer' ? 'radcomputer' : 'standard',
   };
 }
 
 /** URL (`?quality=hoch`) vor gespeicherten Einstellungen vor Standard „mittel“. */
 export function loadSettings(search = location.search): GraphicsSettings {
-  const fromUrl = new URLSearchParams(search).get('quality');
-  if (isLevel(fromUrl)) return presetSettings(fromUrl);
+  const params = new URLSearchParams(search);
+  const fromUrl = params.get('quality');
+  if (isLevel(fromUrl)) return presetSettings(fromUrl, params.get('hud') === 'radcomputer' ? 'radcomputer' : 'standard');
   try {
     const stored = localStorage.getItem(KEY);
     if (stored) return sanitizeSettings(JSON.parse(stored));

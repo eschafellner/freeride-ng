@@ -21,9 +21,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Detail-Durchgang (Weinberge, Häuser, Kirche, Hafen …) | ✅ |
 | Phase 5: XP, Level, Erfolge, Segmente, Ghost | ✅ (ohne Räder/Outfits/Gebiete) |
 | Phase 5b: Grafik (Qualitätsstufen, Licht, Gras, Wasser) | ✅ |
+| Ortskerne mit Läden, Kamera, Fahrradcomputer-Anzeige | ✅ |
 | Phase 6: Welt ausbauen | ⏭ als Nächstes |
 
-Qualität: 167 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 177 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 

@@ -6,6 +6,8 @@ import type { RoadNetwork } from '../world/roadNetwork';
 import { townMask } from '../world/terrainGen';
 import { merged, painted } from './details';
 import { createFrontPaths, createHouseVariants, tintedMaterial, type FrontPath } from './houses';
+import { createShopFronts, type ShopPlacement } from './shopFronts';
+import { assignShops, type ShopSlot } from '../world/shops';
 
 // --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
 
@@ -114,13 +116,9 @@ export function createProps(
     new THREE.Matrix4().compose(pos.set(x, y, z), q.setFromAxisAngle(up, rot), scale.set(sx, sy, sz));
 
   // --- Gebäude entlang der Wege ---------------------------------------------------------
+  // 1. Bauplätze sammeln, 2. Läden nach Lage zuweisen, 3. Häuser, Läden und Wege bauen
   const variants = createHouseVariants(mulberry32(seed ^ 0x51ed));
-  const houses: Instance[][] = variants.houses.map(() => []);
-  const townhouses: Instance[][] = variants.townhouses.map(() => []);
   const barns: Instance[] = [];
-  const frontPaths: FrontPath[] = [];
-  const gardenBushes: Instance[] = [];
-  const doorPoint = new THREE.Vector3();
   const villages = [...roads.nodes.values()].filter((n) => n.name?.endsWith('dorf'));
   /**
    * Meerseite eines Weges: Liegt in Blickrichtung vom Weg weg (dx, dz) innerhalb
@@ -131,78 +129,148 @@ export function createProps(
     return false;
   };
   const markt = roads.nodes.get('markt');
+  const hafen = roads.nodes.get('hafen');
+
+  interface Building {
+    kind: 'house' | 'townhouse' | 'barn';
+    x: number;
+    y: number;
+    z: number;
+    rot: number;
+    /** Abstand der Gebäudemitte zur Wegmitte und Rand von Gehsteig/Fahrbahn. */
+    off: number;
+    edgeOff: number;
+    toRoad: { x: number; z: number };
+    slot: ShopSlot;
+  }
+  const buildings: Building[] = [];
 
   for (const e of roads.edges.values()) {
     for (let s = 12; s < e.length - 12; s += 15) {
       const p = e.pointAt(s);
       const town = townMask(p.x, p.z) > 0.7;
-      const core = town && markt !== undefined && Math.hypot(p.x - markt.x, p.z - markt.z) < 260;
-      const village = villages.some((v) => Math.hypot(v.x - p.x, v.z - p.z) < 150);
+      const toMarkt = markt ? Math.hypot(p.x - markt.x, p.z - markt.z) : Infinity;
+      const core = town && toMarkt < 260;
+      const village = villages.find((v) => Math.hypot(v.x - p.x, v.z - p.z) < 150);
       const rural = !town && !village && Math.hypot(p.x - REBLAND.x, p.z - REBLAND.z) < REBLAND.radius + 200;
       if (!town && !village && !(rural && rng() < 0.035)) continue;
       if (village && rng() < 0.45) continue;
       const d = e.directionAt(s);
       for (const side of [1, -1]) {
         if (rng() < (core ? 0.08 : 0.25)) continue;
-        const type = core ? 'townhouse' : rural ? 'barn' : 'house';
-        const off = type === 'barn' ? 18 : type === 'townhouse' ? 12 : 13 + rng() * 3;
+        const kind = core ? 'townhouse' : rural ? 'barn' : 'house';
+        const off = kind === 'barn' ? 18 : kind === 'townhouse' ? 12 : 13 + rng() * 3;
         const x = p.x - d.dz * off * side;
         const z = p.z + d.dx * off * side;
-        if (distanceToRoad(roads, x, z, undefined, 30) < (type === 'barn' ? 11 : 8)) continue;
+        if (distanceToRoad(roads, x, z, undefined, 30) < (kind === 'barn' ? 11 : 8)) continue;
         const y = terrain.sample(x, z);
         if (y < 2 || terrain.slope(x, z) > 0.3 || seaward(x, z, -d.dz * side, d.dx * side)) continue;
-        if (!occupied.tryTake(x, z, type === 'barn' ? 9 : 5)) continue;
-        // Front (+z) zur Straße
-        const rot = Math.atan2(d.dz * side, -d.dx * side);
-        if (type === 'barn') {
-          barns.push({ matrix: mat(x, y - 0.3, z, rot, 0.9 + rng() * 0.3) });
-          continue;
-        }
-        const town = type === 'townhouse';
-        const list = town ? variants.townhouses : variants.houses;
-        const vi = Math.floor(rng() * list.length);
-        const variant = list[vi]!;
-        const sc = town ? 1 : 0.85 + rng() * 0.25;
-        const matrix = town
-          ? mat(x, y - 0.3, z, rot, 1, 0.92 + rng() * 0.2, 1)
-          : mat(x, y - 0.3, z, rot, sc, 0.9 + rng() * 0.15, sc);
-        const palette = town ? TOWNHOUSE_COLORS : WALL_COLORS;
-        (town ? townhouses : houses)[vi]!.push({ matrix, color: new THREE.Color(palette[Math.floor(rng() * palette.length)]!) });
+        if (!occupied.tryTake(x, z, kind === 'barn' ? 9 : 5)) continue;
 
-        // Weg von der Tür bis an den Gehsteig bzw. Fahrbahnrand
-        doorPoint.set(variant.door.x, 0, variant.door.z).applyMatrix4(matrix);
-        const toRoadX = d.dz * side;
-        const toRoadZ = -d.dx * side;
-        const edgeOff = e.surface === 'town' ? 5.15 : e.surface === 'gravel' ? 2.4 : 3.2;
-        const remaining = off - variant.door.z * sc - edgeOff;
-        if (remaining > 1) {
-          frontPaths.push({
-            from: { x: doorPoint.x, z: doorPoint.z },
-            to: { x: doorPoint.x + toRoadX * remaining, z: doorPoint.z + toRoadZ * remaining },
-          });
-        }
-        // Büsche an einer oder beiden vorderen Hausecken
-        for (const corner of [-1, 1]) {
-          if (rng() < 0.45) continue;
-          const cx = (corner * 4.6 + (rng() - 0.5)) * sc;
-          const cz = 3.9 * sc + rng() * 0.6;
-          doorPoint.set(cx, 0, cz).applyMatrix4(matrix);
-          gardenBushes.push({ matrix: mat(doorPoint.x, terrain.sample(doorPoint.x, doorPoint.z) - 0.1, doorPoint.z, rng() * 6, 0.45 + rng() * 0.3) });
-        }
+        // Lage für die Ladenverteilung
+        const toHafen = hafen ? Math.hypot(x - hafen.x, z - hafen.z) : Infinity;
+        let slot: Omit<ShopSlot, 'id'>;
+        if (kind === 'barn') slot = { x, z, district: 'land', town: 'land', centerDist: 0, barn: true };
+        else if (village) slot = { x, z, district: 'dorf', town: village.id, centerDist: Math.hypot(x - village.x, z - village.z), barn: false };
+        else if (town && toHafen < 170) slot = { x, z, district: 'hafen', town: 'lumen', centerDist: toHafen, barn: false };
+        else slot = { x, z, district: core ? 'kern' : 'stadt', town: 'lumen', centerDist: toMarkt, barn: false };
+
+        buildings.push({
+          kind, x, y, z,
+          // Front (+z) zur Straße
+          rot: Math.atan2(d.dz * side, -d.dx * side),
+          off,
+          edgeOff: e.surface === 'town' ? 5.15 : e.surface === 'gravel' ? 2.4 : 3.2,
+          toRoad: { x: d.dz * side, z: -d.dx * side },
+          slot: { ...slot, id: buildings.length },
+        });
       }
     }
   }
+
+  const shopRng = mulberry32(seed ^ 0x5a0b);
+  const shopOf = new Map(assignShops(buildings.map((b) => b.slot), shopRng).map((a) => [a.slot, a]));
+
+  const variantLists = [variants.houses, variants.townhouses, variants.houseShops, variants.townhouseShops];
+  const instances: Instance[][][] = variantLists.map((l) => l.map(() => []));
+  const frontPaths: FrontPath[] = [];
+  const gardenBushes: Instance[] = [];
+  const shops: ShopPlacement[] = [];
+  const footprints: { x: number; z: number }[][] = [];
+  const doorPoint = new THREE.Vector3();
+
+  for (const b of buildings) {
+    const shop = shopOf.get(b.slot.id);
+    if (b.kind === 'barn') {
+      const sc = 0.9 + rng() * 0.3;
+      barns.push({ matrix: mat(b.x, b.y - 0.3, b.z, b.rot, sc) });
+      if (shop) {
+        shops.push({
+          type: shop.type, name: shop.name, x: b.x, y: b.y - 0.3, z: b.z, rot: b.rot, sc, sy: sc,
+          front: 4, door: { x: 0, z: 4.6 }, depth: b.off - 4 * sc - b.edgeOff,
+        });
+      }
+      continue;
+    }
+    const town = b.kind === 'townhouse';
+    const listIndex = (town ? 1 : 0) + (shop ? 2 : 0);
+    const list = variantLists[listIndex]!;
+    const vi = Math.floor(rng() * list.length);
+    const variant = list[vi]!;
+    const sc = town ? 1 : 0.85 + rng() * 0.25;
+    const sy = town ? 0.92 + rng() * 0.2 : 0.9 + rng() * 0.15;
+    const matrix = mat(b.x, b.y - 0.3, b.z, b.rot, sc, sy, sc);
+    const palette = town ? TOWNHOUSE_COLORS : WALL_COLORS;
+    instances[listIndex]![vi]!.push({ matrix, color: new THREE.Color(palette[Math.floor(rng() * palette.length)]!) });
+
+    // Grundfläche (für die Grasmaske: kein Gras an den Wänden)
+    const hw = (town ? 3 : 4) + 0.4;
+    const hd = (town ? 4.5 : 3.5) + 0.4;
+    footprints.push([[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([lx, lz]) => {
+      doorPoint.set(lx!, 0, lz!).applyMatrix4(matrix);
+      return { x: doorPoint.x, z: doorPoint.z };
+    }));
+
+    const depth = b.off - variant.front * sc - b.edgeOff;
+    if (shop) {
+      shops.push({
+        type: shop.type, name: shop.name, x: b.x, y: b.y - 0.3, z: b.z, rot: b.rot, sc, sy,
+        front: variant.front, window: variant.shop, door: variant.door, depth,
+      });
+    }
+
+    // Weg von der Tür bis an den Gehsteig bzw. Fahrbahnrand
+    doorPoint.set(variant.door.x, 0, variant.door.z).applyMatrix4(matrix);
+    const remaining = b.off - variant.door.z * sc - b.edgeOff;
+    if (remaining > 1) {
+      frontPaths.push({
+        from: { x: doorPoint.x, z: doorPoint.z },
+        to: { x: doorPoint.x + b.toRoad.x * remaining, z: doorPoint.z + b.toRoad.z * remaining },
+      });
+    }
+    // Büsche an einer oder beiden vorderen Hausecken (nicht vor Läden mit Außenbereich)
+    for (const corner of [-1, 1]) {
+      if (rng() < (shop ? 0.85 : 0.45)) continue;
+      const cx = (corner * 4.6 + (rng() - 0.5)) * sc;
+      const cz = 3.9 * sc + rng() * 0.6;
+      doorPoint.set(cx, 0, cz).applyMatrix4(matrix);
+      gardenBushes.push({ matrix: mat(doorPoint.x, terrain.sample(doorPoint.x, doorPoint.z) - 0.1, doorPoint.z, rng() * 6, 0.45 + rng() * 0.3) });
+    }
+  }
+
   const tinted = (geo: THREE.BufferGeometry, items: Instance[]) => {
     const m = toMesh(geo, items);
     m.material = tintedMaterial();
     return m;
   };
-  variants.houses.forEach((v, i) => group.add(tinted(v.geometry, houses[i]!)));
-  variants.townhouses.forEach((v, i) => group.add(tinted(v.geometry, townhouses[i]!)));
+  variantLists.forEach((list, li) => list.forEach((v, vi) => group.add(tinted(v.geometry, instances[li]![vi]!))));
   group.add(toMesh(barn(), barns));
   const paths = createFrontPaths(frontPaths, terrain, mulberry32(seed ^ 0xa11e));
   group.add(paths.group);
+  group.add(createShopFronts(shops, terrain, mulberry32(seed ^ 0x5f0f)));
   group.userData.pathLines = paths.lines;
+  group.userData.footprints = footprints;
+  group.userData.shops = shops.map((sh) => ({ type: sh.type, name: sh.name, x: sh.x, z: sh.z }));
 
   // --- Bäume, Büsche, Felsen ---------------------------------------------------------------
   const conifers: Instance[] = [];
@@ -273,7 +341,9 @@ export function createProps(
   }
 
   group.userData.counts = {
-    houses: houses.flat().length, townhouses: townhouses.flat().length, barns: barns.length, paths: frontPaths.length,
+    houses: instances[0]!.flat().length + instances[2]!.flat().length,
+    townhouses: instances[1]!.flat().length + instances[3]!.flat().length,
+    barns: barns.length, paths: frontPaths.length, shops: shops.length,
     conifers: conifers.length, leafy: leafy.length, bushes: bushes.length, rocks: rocks.length,
   };
   return group;

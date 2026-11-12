@@ -73,7 +73,7 @@ describe('Grafik-Einstellungen', () => {
     });
     expect(s).toEqual({
       preset: 'eigene', pixelRatio: 2, shadowMapSize: 2048, grassDistance: 150,
-      grassDensity: 6, waveCell: 8, ao: false, bloom: true,
+      grassDensity: 6, waveCell: 8, ao: false, bloom: true, hud: 'standard',
     });
     expect(sanitizeSettings(null)).toEqual(presetSettings('mittel'));
   });

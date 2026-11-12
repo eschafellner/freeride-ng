@@ -47,12 +47,14 @@ export class GraphicsPanel {
         <label for="g-waves">Wellen</label>${select('g-waves', LIMITS.waveCell, WAVE_LABEL)}<span></span>
         <label for="g-ao">Kontaktschatten</label><input type="checkbox" id="g-ao"><span></span>
         <label for="g-bloom">Leuchten (Bloom)</label><input type="checkbox" id="g-bloom"><span></span>
+        <label for="g-hud">Anzeige</label><select id="g-hud"><option value="standard">Standard</option><option value="radcomputer">Fahrradcomputer</option></select><span></span>
+        <label>Bildrate</label><b id="g-fps">–</b><span></span>
       </div>
       <p class="hint">Änderungen wirken sofort. Kontaktschatten, Bloom und große Grasweite kosten am meisten.</p>
       <button id="g-close" class="primary">Fertig <kbd>G</kbd></button>`;
 
     for (const b of this.el.querySelectorAll<HTMLButtonElement>('[data-preset]')) {
-      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel)));
+      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel, this.settings.hud)));
     }
     const $ = <T extends HTMLElement>(id: string) => this.el.querySelector<T>(`#${id}`)!;
     const custom = (patch: Partial<GraphicsSettings>) => this.set({ ...this.settings, ...patch, preset: 'eigene' });
@@ -63,7 +65,16 @@ export class GraphicsPanel {
     $<HTMLSelectElement>('g-waves').addEventListener('change', (e) => custom({ waveCell: Number((e.target as HTMLSelectElement).value) }));
     $<HTMLInputElement>('g-ao').addEventListener('change', (e) => custom({ ao: (e.target as HTMLInputElement).checked }));
     $<HTMLInputElement>('g-bloom').addEventListener('change', (e) => custom({ bloom: (e.target as HTMLInputElement).checked }));
+    // Die Anzeige ist keine Grafiklast: Voreinstellung bleibt erhalten
+    $<HTMLSelectElement>('g-hud').addEventListener('change', (e) =>
+      this.set({ ...this.settings, hud: (e.target as HTMLSelectElement).value === 'radcomputer' ? 'radcomputer' : 'standard' }));
     $('g-close').addEventListener('click', () => this.onClose?.());
+  }
+
+  /** Aktuelle Bildrate anzeigen (nur bei offenem Menü sichtbar). */
+  showFps(fps: number, ms: number): void {
+    if (this.el.hidden) return;
+    this.el.querySelector('#g-fps')!.textContent = `${Math.round(fps)} fps · ${ms.toFixed(1)} ms`;
   }
 
   /** Wird beim Klick auf „Fertig“ aufgerufen. */
@@ -92,5 +103,6 @@ export class GraphicsPanel {
     $<HTMLSelectElement>('g-waves').value = String(s.waveCell);
     $<HTMLInputElement>('g-ao').checked = s.ao;
     $<HTMLInputElement>('g-bloom').checked = s.bloom;
+    $<HTMLSelectElement>('g-hud').value = s.hud;
   }
 }

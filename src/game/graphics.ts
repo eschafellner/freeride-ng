@@ -66,6 +66,7 @@ export class GraphicsController {
       this.postfx.setEffects(s.ao, s.bloom);
     }
 
+    document.body.classList.toggle('hud-radcomputer', s.hud === 'radcomputer');
     this.current = { ...s };
   }
 

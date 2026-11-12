@@ -91,6 +91,23 @@ export function addMaskLines(u: TerrainUniforms, lines: { x: number; z: number }
   u.tRoadMask.value.needsUpdate = true;
 }
 
+/** Flächen (z. B. Hausgrundrisse) in die Straßenmaske füllen: dort wächst kein Gras. */
+export function addMaskPolygons(u: TerrainUniforms, polygons: { x: number; z: number }[][]): void {
+  const canvas = u.tRoadMask.value.image as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+  const size = u.terrainSize.value;
+  const px = canvas.width;
+  const toPx = (v: number) => ((v + size / 2) / size) * px;
+  ctx.fillStyle = '#fff';
+  for (const poly of polygons) {
+    ctx.beginPath();
+    poly.forEach((p, i) => (i === 0 ? ctx.moveTo(toPx(p.x), toPx(p.z)) : ctx.lineTo(toPx(p.x), toPx(p.z))));
+    ctx.closePath();
+    ctx.fill();
+  }
+  u.tRoadMask.value.needsUpdate = true;
+}
+
 /** Breite der Straßenmaske je Belag in m (Fahrbahn plus Rand, Gehsteige in der Stadt). */
 const MASK_WIDTH = { asphalt: 7, town: 11.5, gravel: 5.5 } as const;
 /** Gepflasterte Plätze: Knoten und Radius in m. */

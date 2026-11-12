@@ -15,7 +15,7 @@ import {
 import {
   formatSegmentTime, pointOnSegment, resolveSegments, SEGMENT_KIND_LABEL, SegmentTracker, type SegmentEvent,
 } from '../world/segments';
-import { RiderOnNetwork } from '../world/rider';
+import { RiderOnNetwork, straightest } from '../world/rider';
 import { sanitizeSave, type SaveData } from '../world/saveGame';
 import { createWorld } from '../world/world';
 import { CameraRig } from './cameraRig';
@@ -34,7 +34,7 @@ import { GraphicsPanel } from './graphicsPanel';
 import { createPaving } from './paving';
 import { loadSettings, storeSettings } from './quality';
 import { createScene, driftClouds, followSun } from './scene';
-import { addMaskLines, createTerrainUniforms, PLAZAS } from './shaderChunks';
+import { addMaskLines, addMaskPolygons, createTerrainUniforms, PLAZAS } from './shaderChunks';
 import { deleteSave, loadSave, writeSave } from './storage';
 import { createTerrainMesh } from './terrainMesh';
 
@@ -84,6 +84,8 @@ async function main() {
   scene.add(props);
   // Wege zu den Haustüren: kein Gras auf den Trittsteinen
   addMaskLines(terrainUniforms, props.userData.pathLines as { x: number; z: number }[][], 1.6);
+  // Hausgrundrisse: kein Gras an den Wänden und vor den Fenstern
+  addMaskPolygons(terrainUniforms, props.userData.footprints as { x: number; z: number }[][]);
   scene.add(createDetails(world.terrain, world.roads, world.seed));
   const poiMeshes = new PoiMeshes(pois, world.terrain, progress.collected);
   scene.add(poiMeshes.group);
@@ -117,6 +119,7 @@ async function main() {
   ghost.root.visible = false;
   scene.add(ghost.root);
   const rig = new CameraRig(camera, world.terrain);
+  const aheadVec = new THREE.Vector3();
 
   const worldMap = new WorldMap(world.terrain, world.roads, fog, pois);
   const minimap = $<HTMLCanvasElement>('minimap');
@@ -619,6 +622,9 @@ async function main() {
   // --- Spielschleife ---------------------------------------------------------------------
 
   let clock = 0;
+  let fpsFrames = 0;
+  let fpsTime = 0;
+  let fpsLast = performance.now();
   // Demo: feste Kamera für Grafikprüfungen (?cam=x,y,z,zielX,zielY,zielZ)
   const camParam = demo ? params.get('cam')?.split(',').map(Number) : undefined;
   const fixedCam = camParam?.length === 6 && camParam.every(Number.isFinite) ? camParam : null;
@@ -652,7 +658,13 @@ async function main() {
     model.animate(dt, state.speed, state.cadence);
     poiMeshes.animate(dt);
     landmarks.animate(dt);
-    rig.update(dt, riderPos, forward);
+    // Blick voraus folgt der gewählten Abzweigung (Vorschau ohne die Wahl zu verbrauchen)
+    const aheadP = rider.pointAhead(18, (node, exits) => {
+      const sel = selector.selectionFor(node.id);
+      return (sel && exits.find((e) => e.edge.id === sel.edge.id && e.dir === sel.dir)) || straightest(node, exits);
+    });
+    aheadVec.set(aheadP.x, aheadP.y, aheadP.z);
+    rig.update(dt, riderPos, forward, aheadVec, state.speed);
     if (fixedCam) {
       camera.position.set(fixedCam[0]!, fixedCam[1]!, fixedCam[2]!);
       camera.lookAt(fixedCam[3]!, fixedCam[4]!, fixedCam[5]!);
@@ -698,6 +710,18 @@ async function main() {
     }
 
     graphics.render();
+    // Bildrate über eine halbe Sekunde gemittelt (für Testanzeige und Grafikmenü)
+    fpsFrames++;
+    fpsTime += (now - fpsLast) / 1000;
+    fpsLast = now;
+    if (fpsTime >= 0.5) {
+      const fps = fpsFrames / fpsTime;
+      const ms = (fpsTime / fpsFrames) * 1000;
+      fpsFrames = 0;
+      fpsTime = 0;
+      if (!testPanel.hidden) tp('fps').textContent = `${Math.round(fps)} fps · ${ms.toFixed(1)} ms`;
+      graphicsPanel.showFps(fps, ms);
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

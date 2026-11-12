@@ -94,6 +94,29 @@ export class RiderOnNetwork {
     return this.exitsAt(this.nextNode);
   }
 
+  /**
+   * Punkt `ds` Meter voraus auf dem Weg, ohne den Fahrer zu bewegen (für die Kamera).
+   * An Kreuzungen entscheidet `preview` (ohne Nebenwirkungen), sonst geradeaus.
+   */
+  pointAhead(ds: number, preview: ExitChooser = straightest): { x: number; y: number; z: number } {
+    let edge = this._edge;
+    let dir = this._dir;
+    let s = this._s;
+    let remaining = Math.max(0, ds);
+    for (let guard = 0; guard < 8; guard++) {
+      const toNode = dir === 1 ? edge.length - s : s;
+      if (remaining <= toNode) return edge.pointAt(s + remaining * dir);
+      remaining -= toNode;
+      const node = this.network.node(dir === 1 ? edge.to : edge.from);
+      const exits = this.exitsFrom(node, edge, dir);
+      const next = preview(node, exits);
+      edge = next.edge;
+      dir = next.dir;
+      s = dir === 1 ? 0 : edge.length;
+    }
+    return edge.pointAt(s);
+  }
+
   /** Kehrtwende auf der Stelle. */
   reverse(): void {
     this._dir = (-this._dir) as 1 | -1;
@@ -123,7 +146,13 @@ export class RiderOnNetwork {
   }
 
   private exitsAt(node: RoadNode): Exit[] {
-    const arrive = this.directionAtEnd();
+    return this.exitsFrom(node, this._edge, this._dir);
+  }
+
+  /** Abzweigungen an `node` für einen Fahrer, der auf `edge` in Richtung `dir` ankommt. */
+  private exitsFrom(node: RoadNode, from: RoadEdge, fromDir: 1 | -1): Exit[] {
+    const end = from.directionAt(fromDir === 1 ? from.length : 0);
+    const arrive = { dx: end.dx * fromDir, dz: end.dz * fromDir };
     const all: Exit[] = [];
     for (const id of node.edges) {
       const edge = this.network.edge(id);
@@ -132,7 +161,7 @@ export class RiderOnNetwork {
       if (edge.from === node.id) dirs.push(1);
       if (edge.to === node.id) dirs.push(-1);
       for (const dir of dirs) {
-        if (edge === this._edge && dir === -this._dir) continue; // Umkehren
+        if (edge === from && dir === -fromDir) continue; // Umkehren
         const d = edge.directionAt(dir === 1 ? 0 : edge.length);
         const dx = d.dx * dir;
         const dz = d.dz * dir;
@@ -144,11 +173,6 @@ export class RiderOnNetwork {
     }
     if (all.length > 0) return all;
     // Wegende: umkehren
-    return [{ edge: this._edge, dir: (-this._dir) as 1 | -1, turn: Math.PI }];
-  }
-
-  private directionAtEnd(): { dx: number; dz: number } {
-    const d = this._edge.directionAt(this._dir === 1 ? this._edge.length : 0);
-    return { dx: d.dx * this._dir, dz: d.dz * this._dir };
+    return [{ edge: from, dir: (-fromDir) as 1 | -1, turn: Math.PI }];
   }
 }

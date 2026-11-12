@@ -260,13 +260,23 @@ Offen aus Phase 5:
 - Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
 - Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
 
+**12.11.2026, Ortskerne und Feinschliff:**
+- Läden, Cafés und Restaurants nach Lage verteilt (`src/world/shops.ts`, getestet): dichte Ladenzeile um den Marktplatz, Eisdiele, Fischimbiss und Restaurants am Hafen, Weinstube, Dorfladen und Gasthaus in den Dörfern, Hofläden an Scheunen. Ein Fahrradladen pro Ort (Lumen, Rebdorf, Hangdorf), Obergrenzen je Art und Ort, gleiche Läden mindestens 70 m auseinander, jeder Name nur einmal pro Ort. Aktuell 44 Läden
+- Ladenfronten (`shopFronts.ts`): Schaufenster mit Auslage je Art, gestreifte Markise, Schild mit Namen (Texturatlas), Ausleger-Schild bei Gasthaus, Weinstube und Fahrradladen. Außenbereiche mit Bistrotischen und Schirmen, Biertischen, Fahrradständer, Blumeneimern, Fässern, Kisten und Kürbissen
+- Fahrradläden sind vorerst nur Gebäude. Der Einkauf von Rad-Skins (mit Währung) kommt später
+- Kein Gras mehr an Hauswänden (Grundrisse in der Grasmaske)
+- Bildrate in der Testanzeige (`T`) und im Grafikmenü
+- Kamera: blickt in Kurven und an Abzweigungen auf die Straße voraus (`RiderOnNetwork.pointAhead`, ohne die Richtungswahl zu verbrauchen), fährt bei Tempo etwas zurück und öffnet das Blickfeld
+- Anzeige wahlweise im Fahrradcomputer-Look (Grafikmenü → Anzeige, oder `&hud=radcomputer`)
+
 Offen aus Phase 5b:
 
 - [ ] Bildrate auf allen drei Stufen im echten Browser messen (headless nur mit Software-Rendering geprüft)
 - [ ] Auf „Hoch“ ist der Himmel etwas blasser als auf „Mittel“, weil dort auch der Himmel durch das Tone Mapping läuft
 - [ ] In den Randbereichen von Lumen (außerhalb der Stadtmaske) wächst noch dichtes Gras zwischen den Häusern
-- [ ] Gras wächst bis an die Hauswände und verdeckt dort teils die Erdgeschossfenster. Hausflächen in die Grasmaske aufnehmen
 - [ ] Stadthäuser stehen nah am Gehsteig, ihre Wege sind nur etwa 1,5 m lang
+- [ ] Café-Gäste, Passanten, Geräusche (bewusst zurückgestellt), Währung und Laden für Rad-Skins (noch zu entwerfen)
+- [ ] Kamera-Schwenk und Zoom bei Tempo am echten Rad beurteilen
 
 **11.11.2026, Detail-Durchgang umgesetzt:**
 - Landschaft: Weinberge im Rebland (rund 1.400 Rebzeilen entlang der Höhenlinien), Felder als Flickenteppich im Flachland, Laub- und Nadelwald je nach Höhe, Büsche, Felsen an steilen Hängen

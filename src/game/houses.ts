@@ -167,15 +167,43 @@ function doorParts(s: DoorStyle, rng: Rng): THREE.BufferGeometry[] {
   return p;
 }
 
+/** Schaufenster eines Ladens im Modell (Mitte x, Breite, Unterkante, Oberkante). */
+export interface ShopWindow {
+  x: number;
+  width: number;
+  bottom: number;
+  top: number;
+}
+
+/**
+ * Schaufenster mit hellem Innenraum (wirkt beleuchtet), Rahmen und Sockel.
+ * Auslage, Markise und Schild kommen je nach Ladenart dazu (shopFronts.ts).
+ */
+function shopWindowParts(win: ShopWindow, wallZ: number): THREE.BufferGeometry[] {
+  const { x, width, bottom, top } = win;
+  const h = top - bottom;
+  const y = (top + bottom) / 2;
+  return [
+    part(box(width + 0.3, h + 0.3, 0.08, x, y, wallZ + 0.04), '#3b3f45'),
+    part(box(width, h, 0.06, x, y, wallZ + 0.09), '#e8dcc0'),
+    part(box(0.08, h, 0.05, x, y, wallZ + 0.14), '#3b3f45'),
+    part(box(width + 0.4, 0.5, 0.2, x, bottom - 0.25, wallZ + 0.1), '#7d766b'),
+  ];
+}
+
 export interface HouseVariant {
   geometry: THREE.BufferGeometry;
   /** Türmitte (x) und Vorderkante der Stufe (z) im Modell. */
   door: { x: number; z: number };
   kind: 'house' | 'townhouse';
+  /** Vorderwand bei z. */
+  front: number;
+  /** Nur bei Ladenvarianten. */
+  shop?: ShopWindow;
 }
 
 /** Wohnhaus: zwei Geschosse, Walmdach, Sockel. */
-function houseVariant(rng: Rng): HouseVariant {
+function houseVariant(rng: Rng, shop = false): HouseVariant {
   const w = 8, d = 7, h = 5, floorH = 2.5;
   const roof = pick(rng, ROOFS);
   const parts: THREE.BufferGeometry[] = [
@@ -202,25 +230,28 @@ function houseVariant(rng: Rng): HouseVariant {
     boxes: rng() < 0.6,
   };
   const door: DoorStyle = { kind: pick(rng, ['canopy', 'arch', 'double', 'glass'] as const), color: pick(rng, DOORS), frame: pick(rng, FRAMES.slice(0, 2)) };
-  const doorX = pick(rng, [0, 0, -w / 4, w / 4]);
+  // Laden: Tür rechts, links ein breites Schaufenster
+  const doorX = shop ? w / 2 - 1.4 : pick(rng, [0, 0, -w / 4, w / 4]);
+  const shopWin: ShopWindow | undefined = shop ? { x: -0.9, width: 4.2, bottom: 0.75, top: 2.15 } : undefined;
+  if (shopWin) parts.push(...shopWindowParts(shopWin, d / 2));
 
   parts.push(...onWall(doorParts(door, rng), doorX, 0, d / 2, 0));
   for (let f = 0; f < 2; f++) {
     const y = f * floorH + floorH * 0.62;
     for (const x of [-w / 3, 0, w / 3]) {
-      // Vorderseite: Erdgeschoss neben der Tür frei lassen
-      if (!(f === 0 && Math.abs(x - doorX) < 1.6) && !(x === 0 && f === 0)) {
+      // Vorderseite: Erdgeschoss neben der Tür (und beim Laden ganz) frei lassen
+      if (!(f === 0 && (shop || Math.abs(x - doorX) < 1.6)) && !(x === 0 && f === 0)) {
         parts.push(...onWall(windowParts(win, rng, true), x, y, d / 2, 0));
       }
       if (x !== 0) parts.push(...onWall(windowParts(win, rng, false), x, y, -d / 2, Math.PI));
     }
     for (const side of [1, -1]) parts.push(...onWall(windowParts(win, rng, false), side * w / 2, y, 0, side * Math.PI / 2));
   }
-  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'house' };
+  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'house', front: d / 2, shop: shopWin };
 }
 
 /** Stadthaus: schmal, drei Geschosse, Gesims; manchmal mit Laden im Erdgeschoss. */
-function townhouseVariant(rng: Rng): HouseVariant {
+function townhouseVariant(rng: Rng, shop = false): HouseVariant {
   const w = 6, d = 9, h = 8.5, floorH = 2.8;
   const roof = pick(rng, ROOFS);
   const parts: THREE.BufferGeometry[] = [
@@ -239,20 +270,11 @@ function townhouseVariant(rng: Rng): HouseVariant {
     shutters: rng() < 0.4 ? pick(rng, SHUTTERS) : null,
     boxes: rng() < 0.7,
   };
-  const shop = rng() < 0.4;
   const door: DoorStyle = { kind: pick(rng, ['arch', 'glass', 'canopy'] as const), color: pick(rng, DOORS), frame: '#efe6d2' };
-  let doorX = 0;
-  if (shop) {
-    // Laden: großes Schaufenster, gestreifte Markise, Tür seitlich
-    doorX = w / 2 - 1.1;
-    const awning = pick(rng, [['#c0392b', '#f4efe4'], ['#2f5d8a', '#f4efe4'], ['#3f6e4a', '#efe6d2']] as const);
-    parts.push(part(box(3.4, 1.7, 0.08, -0.9, 1.45, d / 2 + 0.04), '#4a5f73'));
-    parts.push(part(box(3.6, 0.12, 0.12, -0.9, 2.35, d / 2 + 0.08), '#efe6d2'));
-    for (let k = 0; k < 6; k++) {
-      parts.push(part(box(0.62, 0.08, 1.3, -0.9 - 1.55 + k * 0.62, 2.75, d / 2 + 0.6).rotateX(0), awning[k % 2]!));
-    }
-    parts.push(part(box(3.4, 0.4, 0.06, -0.9, 3.05, d / 2 + 0.03), '#2b2b2b'));
-  }
+  // Laden: großes Schaufenster, Tür seitlich
+  const doorX = shop ? w / 2 - 1.1 : 0;
+  const shopWin: ShopWindow | undefined = shop ? { x: -0.9, width: 3.4, bottom: 0.8, top: 2.3 } : undefined;
+  if (shopWin) parts.push(...shopWindowParts(shopWin, d / 2));
   parts.push(...onWall(doorParts(door, rng), doorX, 0, d / 2, 0));
   for (let f = 0; f < 3; f++) {
     const y = f * floorH + floorH * 0.6;
@@ -264,13 +286,23 @@ function townhouseVariant(rng: Rng): HouseVariant {
       for (const z of [-d / 4, d / 4]) parts.push(...onWall(windowParts(win, rng, false), side * w / 2, y, z, side * Math.PI / 2));
     }
   }
-  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'townhouse' };
+  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'townhouse', front: d / 2, shop: shopWin };
 }
 
-export function createHouseVariants(rng: Rng, houses = 8, townhouses = 6): { houses: HouseVariant[]; townhouses: HouseVariant[] } {
+export interface HouseVariants {
+  houses: HouseVariant[];
+  townhouses: HouseVariant[];
+  /** Mit Ladenlokal im Erdgeschoss. */
+  houseShops: HouseVariant[];
+  townhouseShops: HouseVariant[];
+}
+
+export function createHouseVariants(rng: Rng): HouseVariants {
   return {
-    houses: Array.from({ length: houses }, () => houseVariant(rng)),
-    townhouses: Array.from({ length: townhouses }, () => townhouseVariant(rng)),
+    houses: Array.from({ length: 8 }, () => houseVariant(rng)),
+    townhouses: Array.from({ length: 6 }, () => townhouseVariant(rng)),
+    houseShops: Array.from({ length: 3 }, () => houseVariant(rng, true)),
+    townhouseShops: Array.from({ length: 4 }, () => townhouseVariant(rng, true)),
   };
 }
 
