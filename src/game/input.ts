@@ -3,7 +3,7 @@
  * gemeinsame Spielaktionen abgebildet.
  *
  * Gamepad: Steuerkreuz/linker Stick ←/→ Abzweigung, ↑ geradeaus, ↓ Kehrtwende,
- * LB/RB schalten, Start Pause, Back/Select Karte.
+ * LB/RB schalten, Start Pause, Back/Select Karte, Y Fahrradlicht.
  */
 
 export type Action =
@@ -17,7 +17,8 @@ export type Action =
   | 'map'
   | 'estop'
   | 'testPanel'
-  | 'graphics';
+  | 'graphics'
+  | 'light';
 
 const KEYS: Record<string, Action> = {
   ArrowLeft: 'turnLeft',
@@ -33,6 +34,7 @@ const KEYS: Record<string, Action> = {
   Escape: 'estop',
   t: 'testPanel',
   g: 'graphics',
+  l: 'light',
 };
 
 const PAD_BUTTONS: Record<number, Action> = {
@@ -44,6 +46,7 @@ const PAD_BUTTONS: Record<number, Action> = {
   5: 'shiftUp',
   9: 'pause',
   8: 'map',
+  3: 'light',
 };
 
 const STICK_THRESHOLD = 0.6;

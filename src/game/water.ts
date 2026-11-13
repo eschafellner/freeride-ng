@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SKY, SUN_DIR } from './scene';
+import { SKY, SKY_EXTRA, SUN_DIR } from './scene';
 import { NOISE_GLSL, TERRAIN_GLSL, type TerrainUniforms } from './shaderChunks';
 
 /**
@@ -46,6 +46,8 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
       uWaves: { value: waveCell > 0 ? 1 : 0 },
     },
   ]);
+  // Helligkeit des Tageslichts teilen (nicht klonen): nachts wird das Wasser dunkel
+  uniforms.uDaylight = SKY_EXTRA.daylight;
   // Texturen nicht klonen (merge kopiert Werte), sondern teilen
   Object.assign(uniforms, terrain);
 
@@ -81,6 +83,7 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
       uniform vec3 uSky;
       uniform vec3 uShallow;
       uniform vec3 uDeep;
+      uniform float uDaylight;
       ${NOISE_GLSL}
       ${TERRAIN_GLSL}
       varying vec3 vWorld;
@@ -94,7 +97,7 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
         vec3 col = mix(uShallow, uDeep, smoothstep(0.5, 14.0, depth));
         // Kräftiger Lichtunterschied zwischen den Facetten, damit die Wellen sichtbar werden
         float diffuse = 0.35 + 0.65 * max(0.0, dot(n, uSunDir)) + (n.x * 0.6 + n.z * 0.4) * 1.2;
-        col *= diffuse;
+        col *= diffuse * mix(0.22, 1.0, uDaylight);
         // Himmel spiegelt sich bei flachem Blickwinkel
         float fresnel = pow(1.0 - max(0.0, dot(n, view)), 5.0);
         col = mix(col, uSky, fresnel * 0.35);
@@ -108,7 +111,7 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
         float foamBand = 1.0 - smoothstep(0.0, 0.9, depth + wobble * 0.6 - 0.2 * sin(uTime * 1.3));
         float foamBits = smoothstep(0.35, 0.75, vnoise(vWorld.xz * 0.9 + vec2(uTime * 0.4, 0.0)));
         float foam = clamp(foamBand * (0.55 + foamBits), 0.0, 1.0);
-        col = mix(col, vec3(0.96, 0.98, 1.0), foam * 0.85);
+        col = mix(col, vec3(0.96, 0.98, 1.0) * mix(0.3, 1.0, uDaylight), foam * 0.85);
 
         float alpha = mix(0.55, 0.96, smoothstep(0.0, 3.0, depth));
         alpha = max(alpha, foam * 0.9);

@@ -19,7 +19,12 @@ type Rng = () => number;
 const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
 
 /** Oberflächenarten für den Shader (Attribut `surf.x`). */
-export const SURF = { detail: 0, plaster: 1, roof: 2, stone: 3, timber: 4, wood: 5, glass: 6, paving: 7 } as const;
+export const SURF = { detail: 0, plaster: 1, roof: 2, stone: 3, timber: 4, wood: 5, glass: 6, paving: 7, light: 8 } as const;
+
+/** Nachtleuchten von Lampen und Fenstern (0 = Tag, 1 = Nacht), gesetzt vom Tag-Nacht-Wechsel. */
+export const NIGHT_GLOW = { value: 0 };
+/** Anteil der Fenster, die nachts erleuchtet sind. */
+const LIT_WINDOWS = 0.3;
 export type Surf = (typeof SURF)[keyof typeof SURF];
 
 /**
@@ -87,6 +92,7 @@ varying vec3 vSurf;
 varying vec3 vWPos;
 varying vec3 vWNorm;
 varying float vHSeed;
+uniform float uNight;
 ${NOISE_GLSL}
 
 // Muster zur Mitte hin ausblenden, wenn es kleiner als ein Pixel wird (gegen Flimmern)
@@ -223,8 +229,22 @@ vec3 paving(vec3 col, vec2 xz) {
   return col;
 }
 
+// Nachts: Lampen und ein Teil der Fenster leuchten warm (Glas: surf.z ist eine Zufallszahl je Fenster)
+vec3 houseGlow() {
+  if (uNight <= 0.0) return vec3(0.0);
+  float kind = floor(vSurf.x + 0.5);
+  // Lampen: surf.z = Helligkeit (0 = voll), Schaufenster leuchten gedämpfter
+  if (kind > 7.5) return vec3(1.0, 0.78, 0.45) * (vSurf.z > 0.0 ? vSurf.z : 1.4) * uNight;
+  if (kind > 5.5 && kind < 6.5 && vSurf.z < ${LIT_WINDOWS.toFixed(2)}) {
+    float k = vSurf.z / ${LIT_WINDOWS.toFixed(2)};
+    return mix(vec3(0.95, 0.55, 0.22), vec3(1.0, 0.75, 0.42), k) * (0.3 + 0.35 * k) * uNight;
+  }
+  return vec3(0.0);
+}
+
 vec3 houseSurface(vec3 col) {
   float kind = floor(vSurf.x + 0.5);
+  if (kind > 7.5) return col;
   if (kind < 0.5) return col;
   #ifdef HOUSE_PLAIN
     // Einfache Stufe: nur glatte Farben, Glas leicht aufgehellt
@@ -293,7 +313,9 @@ export function houseMaterial(): THREE.MeshLambertMaterial {
       );
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${HOUSE_GLSL}`)
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = houseSurface(diffuseColor.rgb);');
+      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = houseSurface(diffuseColor.rgb);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += houseGlow();');
+    shader.uniforms.uNight = NIGHT_GLOW;
   };
   mat.customProgramCacheKey = () => 'house-surface';
   return mat;
@@ -353,7 +375,7 @@ function windowParts(s: WindowStyle, rng: Rng, front: boolean): THREE.BufferGeom
   const { w, h } = s;
   p.push(part(box(w + 0.18, h + 0.18, 0.06, 0, 0, 0.03), s.frame));
   // Jede Scheibe etwas anders hell: dahinter liegen verschiedene Zimmer
-  p.push(part(box(w, h, 0.06, 0, 0, 0.05), new THREE.Color(s.glass).multiplyScalar(0.6 + rng() * 0.8), 0, SURF.glass));
+  p.push(part(box(w, h, 0.06, 0, 0, 0.05), new THREE.Color(s.glass).multiplyScalar(0.6 + rng() * 0.8), 0, SURF.glass, 0, rng()));
   if (s.bars) {
     p.push(part(box(0.06, h, 0.04, 0, 0, 0.09), s.frame));
     p.push(part(box(w, 0.06, 0.04, 0, h * 0.12, 0.09), s.frame));
@@ -420,7 +442,7 @@ function doorParts(s: DoorStyle, rng: Rng): THREE.BufferGeometry[] {
   p.push(part(box(w, h, 0.08, 0, h / 2, 0.06), s.color, 0, SURF.wood));
   if (s.kind === 'double') p.push(part(box(0.05, h, 0.04, 0, h / 2, 0.11), s.frame));
   if (s.kind === 'glass') {
-    p.push(part(box(w * 0.6, h * 0.35, 0.04, 0, h * 0.72, 0.11), '#4a5f73', 0, SURF.glass));
+    p.push(part(box(w * 0.6, h * 0.35, 0.04, 0, h * 0.72, 0.11), '#4a5f73', 0, SURF.glass, 0, rng()));
   } else {
     // Füllungen
     for (const yy of [h * 0.3, h * 0.7]) {
@@ -443,7 +465,7 @@ function doorParts(s: DoorStyle, rng: Rng): THREE.BufferGeometry[] {
   p.push(part(box(0.06, 0.06, 0.08, w * 0.35, h * 0.48, 0.14), '#c9b037'));
   p.push(part(box(w + 0.8, 0.3, 0.8, 0, 0.15, 0.4), '#b9b2a4', 0, SURF.stone));
   // Wandleuchte oder Hausnummer, manchmal ein Briefkasten
-  if (rng() < 0.5) p.push(part(box(0.18, 0.26, 0.16, w / 2 + 0.45, h * 0.8, 0.1), '#2b2b2b'), part(box(0.12, 0.16, 0.12, w / 2 + 0.45, h * 0.78, 0.17), '#fff2c4'));
+  if (rng() < 0.5) p.push(part(box(0.18, 0.26, 0.16, w / 2 + 0.45, h * 0.8, 0.1), '#2b2b2b'), part(box(0.12, 0.16, 0.12, w / 2 + 0.45, h * 0.78, 0.17), '#fff2c4', 0, SURF.light));
   else p.push(part(box(0.3, 0.22, 0.03, -(w / 2 + 0.4), h * 0.8, 0.03), '#2f5d8a'));
   if (rng() < 0.5) p.push(part(box(0.34, 0.42, 0.16, -(w / 2 + 0.45), 1.15, 0.08), pick(rng, ['#d4a017', '#2b2b2b', '#3f6e4a', '#8a2f2f'])));
   // Blumentöpfe neben der Tür
@@ -476,7 +498,7 @@ function shopWindowParts(win: ShopWindow, wallZ: number): THREE.BufferGeometry[]
   const y = (top + bottom) / 2;
   return [
     part(box(width + 0.3, h + 0.3, 0.08, x, y, wallZ + 0.04), '#3b3f45'),
-    part(box(width, h, 0.06, x, y, wallZ + 0.09), '#e8dcc0'),
+    part(box(width, h, 0.06, x, y, wallZ + 0.09), '#e8dcc0', 0, SURF.light, 0, 0.45),
     part(box(0.08, h, 0.05, x, y, wallZ + 0.14), '#3b3f45'),
     part(box(width + 0.4, 0.5, 0.2, x, bottom - 0.25, wallZ + 0.1), '#7d766b', 0, SURF.stone),
   ];

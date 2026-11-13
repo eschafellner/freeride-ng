@@ -76,8 +76,10 @@ describe('Grafik-Einstellungen', () => {
     });
     expect(s).toEqual({
       preset: 'eigene', pixelRatio: 2, shadowMapSize: 2048, grassDistance: 150,
-      grassDensity: 6, waveCell: 8, ao: false, bloom: true, detailDistance: 2, surfaces: false, hud: 'standard',
+      grassDensity: 6, waveCell: 8, ao: false, bloom: true, detailDistance: 2, surfaces: false, hud: 'standard', dayNight: 'zyklus',
     });
     expect(sanitizeSettings(null)).toEqual(presetSettings('mittel'));
+    expect(sanitizeSettings({ dayNight: 'tag' }).dayNight).toBe('tag');
+    expect(sanitizeSettings({ dayNight: 'quatsch' }).dayNight).toBe('zyklus');
   });
 });

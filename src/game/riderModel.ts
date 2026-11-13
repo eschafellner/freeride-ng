@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 const WHEEL_RADIUS = 0.34;
+/** Helligkeit des Scheinwerfers (Candela, physikalische Einheiten von Three.js). */
+const HEADLIGHT_INTENSITY = 60;
 
 /**
  * Einfache, eigene Low-Poly-Radfahrerfigur aus Grundkörpern.
@@ -108,6 +110,42 @@ export class RiderModel {
     this.root.traverse((o) => {
       if (o instanceof THREE.Mesh) o.castShadow = true;
     });
+  }
+
+  private headlight: THREE.SpotLight | null = null;
+  private lampMats: { front: THREE.MeshLambertMaterial; rear: THREE.MeshLambertMaterial } | null = null;
+
+  /**
+   * Fahrradlicht: Scheinwerfer am Lenker mit Lichtkegel auf die Straße und
+   * Rücklicht. Die Lichtquelle bleibt immer in der Szene und wird nur hell oder
+   * dunkel geschaltet; sonst müssten beim Umschalten alle Shader neu übersetzt werden.
+   */
+  addLight(): this {
+    const front = new THREE.MeshLambertMaterial({ color: '#d8d8d8', emissive: '#fff6d8', emissiveIntensity: 0 });
+    const rear = new THREE.MeshLambertMaterial({ color: '#6a1010', emissive: '#ff2a1a', emissiveIntensity: 0 });
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.06, 0.06), front);
+    lamp.position.set(0, 0.9, 0.5);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.03), rear);
+    tail.position.set(0, 0.8, -0.27);
+    const spot = new THREE.SpotLight('#fff3dc', 0, 45, 0.42, 0.55, 1.4);
+    spot.position.set(0, 0.95, 0.55);
+    spot.target.position.set(0, 0, 9);
+    spot.castShadow = false;
+    this.root.children[0]!.add(lamp, tail, spot, spot.target);
+    this.headlight = spot;
+    this.lampMats = { front, rear };
+    return this;
+  }
+
+  get lightOn(): boolean {
+    return (this.headlight?.intensity ?? 0) > 0;
+  }
+
+  setLight(on: boolean): void {
+    if (!this.headlight || !this.lampMats) return;
+    this.headlight.intensity = on ? HEADLIGHT_INTENSITY : 0;
+    this.lampMats.front.emissiveIntensity = on ? 1.6 : 0;
+    this.lampMats.rear.emissiveIntensity = on ? 1.4 : 0;
   }
 
   /** Halbtransparente Darstellung für den Ghost-Fahrer (ohne Schatten). */

@@ -9,6 +9,15 @@ export const SKY = {
 
 /** Richtung zur Sonne (normiert). Licht, Schatten, Himmel und Wasserglanz nutzen dieselbe. */
 export const SUN_DIR = new THREE.Vector3(-0.5, 0.72, 0.42).normalize();
+/** Zusätzliche Himmels-Uniforms (Tag-Nacht-Wechsel). */
+export const SKY_EXTRA = {
+  stars: { value: 0 },
+  /** Stärke des Lichthofs um Sonne bzw. Mond. */
+  halo: { value: 1 },
+  /** Tageslicht 0 … 1 für Shader mit eigener Beleuchtung (Wasser). */
+  daylight: { value: 1 },
+};
+
 /** Abstand der Schattenlichtquelle vom Fahrer in m. */
 const SUN_DISTANCE = 600;
 
@@ -17,6 +26,7 @@ export interface SceneBundle {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   sun: THREE.DirectionalLight;
+  hemi: THREE.HemisphereLight;
   clouds: THREE.Group;
   sky: THREE.Mesh;
   /** Wird bei Größenänderung aufgerufen (für Nachbearbeitung). */
@@ -35,6 +45,8 @@ function createSky(): THREE.Mesh {
       horizon: { value: SKY.horizon },
       sunColor: { value: SKY.sun },
       sunDir: { value: SUN_DIR },
+      stars: SKY_EXTRA.stars,
+      halo: SKY_EXTRA.halo,
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -47,14 +59,24 @@ function createSky(): THREE.Mesh {
       uniform vec3 horizon;
       uniform vec3 sunColor;
       uniform vec3 sunDir;
+      uniform float stars;
+      uniform float halo;
       varying vec3 vDir;
       void main() {
         vec3 dir = normalize(vDir);
         float t = max(0.0, dir.y);
         vec3 col = mix(horizon, top, pow(t, 0.55));
+        // Sterne: zufällige Punkte in Zellen auf der Kugel, zum Horizont hin schwächer
+        if (stars > 0.0) {
+          vec3 q = dir * 260.0;
+          vec3 cell = floor(q);
+          float h = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+          float star = step(0.986, h) * smoothstep(0.32, 0.05, length(fract(q) - 0.5));
+          col += vec3(0.9, 0.93, 1.0) * star * stars * (0.45 + 0.55 * fract(h * 97.0)) * smoothstep(0.02, 0.25, dir.y);
+        }
         float d = max(0.0, dot(dir, sunDir));
-        // Lichthof und Scheibe
-        col += sunColor * (pow(d, 12.0) * 0.18 + pow(d, 180.0) * 0.5);
+        // Lichthof und Scheibe (Sonne, nachts Mond)
+        col += sunColor * (pow(d, 12.0) * 0.18 * halo + pow(d, 180.0) * 0.5 * halo);
         col = mix(col, sunColor * 1.6, smoothstep(0.99935, 0.9996, d));
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
@@ -135,7 +157,8 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   clouds.name = 'wolken';
   scene.add(clouds);
 
-  scene.add(new THREE.HemisphereLight('#d8ecff', '#6b7f45', 1.25));
+  const hemi = new THREE.HemisphereLight('#d8ecff', '#6b7f45', 1.25);
+  scene.add(hemi);
   const sun = new THREE.DirectionalLight(SKY.sun, 2.6);
   sun.position.copy(SUN_DIR).multiplyScalar(SUN_DISTANCE);
   sun.castShadow = true;
@@ -153,7 +176,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   sun.shadow.radius = 1.4;
   scene.add(sun, sun.target);
 
-  const bundle: SceneBundle = { renderer, scene, camera, sun, clouds, sky, onResize: null };
+  const bundle: SceneBundle = { renderer, scene, camera, sun, hemi, clouds, sky, onResize: null };
   const resize = () => {
     const w = window.innerWidth;
     const h = window.innerHeight;

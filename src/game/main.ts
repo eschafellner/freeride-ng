@@ -38,6 +38,7 @@ import { addMaskLines, addMaskPolygons, createTerrainUniforms, PLAZAS } from './
 import { deleteSave, loadSave, writeSave } from './storage';
 import { createTerrainMesh } from './terrainMesh';
 import { createBridges } from './bridges';
+import { formatClock, timeForClock } from './dayCycle';
 import { REGIONS } from '../world/roadLayout';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -73,7 +74,10 @@ async function main() {
   terrainMesh.mesh.name = 'gelaende';
   scene.add(terrainMesh.mesh);
   const terrainUniforms = createTerrainUniforms(world.terrain, world.roads, terrainMesh.ground);
-  const graphics = new GraphicsController(bundle, terrainUniforms, loadSettings());
+  // Demo: Uhrzeit per URL (&uhr=21.5) für Prüfungen von Dämmerung und Nacht
+  const clockParam = demo ? Number(params.get('uhr')) : NaN;
+  const graphics = new GraphicsController(bundle, terrainUniforms, loadSettings(),
+    Number.isFinite(clockParam) && params.has('uhr') ? timeForClock(clockParam) : undefined);
   scene.add(Object.assign(createRoadMesh(world.roads), { name: 'wege' }));
   scene.add(Object.assign(createPaving(world.terrain, world.roads), { name: 'pflaster' }));
   const landmarks = createLandmarks(world.terrain, world.roads);
@@ -125,7 +129,28 @@ async function main() {
     if (save.gearIndex >= 0) engine.gears.set(save.gearIndex);
   }
 
-  const model = new RiderModel();
+  const model = new RiderModel().addLight();
+  // Fahrradlicht: Wahl bleibt im Browser gespeichert (nur Bequemlichkeit, kein Spielstand)
+  const LIGHT_KEY = 'freeride-ng.licht';
+  let bikeLight = false;
+  try {
+    bikeLight = localStorage.getItem(LIGHT_KEY) === 'an';
+  } catch {
+    // ohne Speicher bleibt das Licht aus
+  }
+  if (demo && params.has('licht')) bikeLight = true;
+  model.setLight(bikeLight);
+  $('h-light-box').addEventListener('click', () => toggleLight());
+  function toggleLight() {
+    bikeLight = !bikeLight;
+    model.setLight(bikeLight);
+    try {
+      localStorage.setItem(LIGHT_KEY, bikeLight ? 'an' : 'aus');
+    } catch {
+      // egal
+    }
+    toasts.show(bikeLight ? 'Fahrradlicht an' : 'Fahrradlicht aus');
+  }
   model.root.name = 'fahrer';
   scene.add(model.root);
   /** Ghost: die eigene Bestfahrt im laufenden Segment. */
@@ -367,6 +392,9 @@ async function main() {
       case 'graphics':
         toggleGraphics();
         break;
+      case 'light':
+        toggleLight();
+        break;
       case 'shiftDown':
         engine.shiftDown();
         break;
@@ -548,6 +576,7 @@ async function main() {
     power: $('h-power'), speed: $('h-speed'), cadence: $('h-cadence'), hr: $('h-hr'),
     grade: $('h-grade'), gear: $('h-gear'), target: $('h-target'),
     dist: $('h-dist'), elev: $('h-elev'), time: $('h-time'), road: $('h-road'), gems: $('h-gems'),
+    clock: $('h-clock'), clockBox: $('h-clock-box'), light: $('h-light'), lightBox: $('h-light-box'),
     level: $('h-level'), xpbar: $('h-xpbar'), xp: $('h-xp'),
   };
 
@@ -571,6 +600,11 @@ async function main() {
     hud.elev.textContent = String(Math.round(s.elevationGain));
     hud.time.textContent = fmtTime(s.timeSec);
     hud.gems.textContent = `${progress.collectedCount}/${progress.collectibleTotal}`;
+    const cycling = graphics.dayNight.cycling;
+    hud.clockBox.hidden = !cycling;
+    if (cycling) hud.clock.textContent = formatClock(graphics.dayNight.time);
+    hud.light.textContent = bikeLight ? 'an' : 'aus';
+    hud.lightBox.classList.toggle('on', bikeLight);
     const next = rider.nextNode;
     const roadName = rider.edge.name ?? '';
     const towards = next.name ? `→ ${next.name} ${Math.round(rider.distanceToNode)} m` : '';
@@ -763,6 +797,7 @@ async function main() {
     }
     followSun(sun, riderPos);
     clock += dt;
+    graphics.dayNight.update(dt, session !== null && !session.isPaused);
     graphics.update(clock, camera);
     driftClouds(bundle.clouds, dt);
 

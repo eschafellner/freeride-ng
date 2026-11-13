@@ -10,7 +10,8 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
   - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`, `&map`,
     `&edge=<Kanten-ID>&s=<Meter>&dir=-1` für einen festen Startpunkt, `&quality=niedrig|mittel|hoch`,
     `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera, `&hud=radcomputer`, `&stats` schreibt Zeichenaufrufe
-    und die größten Meshes in die Konsole, `&locked` lässt gesperrte Gebiete zu); Debug: `/debug.html`
+    und die größten Meshes in die Konsole, `&locked` lässt gesperrte Gebiete zu, `&uhr=21.5` setzt die Tageszeit,
+    `&licht` schaltet das Fahrradlicht ein, `&tag` mit `&quality=` erzwingt „Immer Tag“); Debug: `/debug.html`
   - `?demo` lädt und speichert nie (schützt den echten Spielstand) und öffnet alle Gebiete
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
@@ -53,7 +54,8 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`),
   Details (`props.ts` Platzierung/Vegetation, `houses.ts` Hausvarianten und Wege zur Tür, `shopFronts.ts` Ladenfronten, `details.ts` Wegrand/Weinberge,
   `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Brücken), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
-  `grass.ts`, `water.ts`, `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen)
+  `grass.ts`, `water.ts`, `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen),
+  Tag-Nacht-Wechsel (`dayCycle.ts` reine Rechnung und Farben, `dayNight.ts` überträgt sie auf die Szene)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen
@@ -83,7 +85,7 @@ Grenzen 25–400 W in 5-W-Schritten. Bis dahin sind die Fixtures synthetisch
 
 - Entwickelt wird mit dem `MockDevice`; das echte Rad kommt erst zum Abschluss einer Phase dazu.
   Im Spiel steuert man den Simulator mit W/S (Kadenz) und R/F (Trittstärke, max. ±100 W, ohne Tastenwiederholung).
-  Pfeiltasten und A/D sind für die Richtungswahl reserviert. `T` blendet die Testanzeige ein
+  Pfeiltasten und A/D sind für die Richtungswahl reserviert, `L` schaltet das Fahrradlicht. `T` blendet die Testanzeige ein
   (Kette Kadenz → Wunschtempo → Zielwatt → gesendet → Ist-Leistung, Drehmoment).
 - Grafik prüfen: headless Chromium aus dem Playwright-Cache mit `--use-angle=swiftshader --enable-unsafe-swiftshader --screenshot` auf `/?demo&skip=…`.
 - Tests vor allem für Parser, Physik und Zielwatt-Begrenzung. Grafik und Spielgefühl prüft der Nutzer selbst.

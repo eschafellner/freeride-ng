@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { part, sharedHouseMaterial, SURF } from './houses';
 import { DynamicLod, lod, LodInstances, type LodItem } from './lod';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Heightfield } from '../world/heightfield';
@@ -34,19 +35,21 @@ const toItem = (p: Placement): LodItem => ({
 });
 
 /** Kleinteile am Weg in Kacheln, ab `hide` Metern ausgeblendet. */
-function chunked(name: string, geo: THREE.BufferGeometry, items: Placement[], hide: number, castShadow: boolean): THREE.Group {
+function chunked(name: string, geo: THREE.BufferGeometry, items: Placement[], hide: number, castShadow: boolean, mat: THREE.Material = material()): THREE.Group {
   if (items.length === 0) return new THREE.Group();
-  return lod.add(new LodInstances({ name, near: geo, material: material(), nearDist: hide, hideDist: hide, castShadow, cell: 250 },
+  return lod.add(new LodInstances({ name, near: geo, material: mat, nearDist: hide, hideDist: hide, castShadow, cell: 250 },
     items.map((p) => toItem(p)))).group;
 }
 
 // --- Modelle -------------------------------------------------------------------------
 
+/** Laterne im Hausmaterial: der Leuchtkörper leuchtet nachts (SURF.light). */
 function lampGeometry(): THREE.BufferGeometry {
   return merged([
-    painted(new THREE.CylinderGeometry(0.08, 0.1, 4.2, 6).translate(0, 2.1, 0), '#3b3f45'),
-    painted(new THREE.BoxGeometry(0.08, 0.08, 1.0).translate(0, 4.15, -0.45), '#3b3f45'),
-    painted(new THREE.BoxGeometry(0.35, 0.18, 0.5).translate(0, 4.05, -0.9), '#fff2c4'),
+    part(new THREE.CylinderGeometry(0.08, 0.1, 4.2, 6).translate(0, 2.1, 0), '#3b3f45'),
+    part(new THREE.BoxGeometry(0.08, 0.08, 1.0).translate(0, 4.15, -0.45), '#3b3f45'),
+    part(new THREE.BoxGeometry(0.4, 0.08, 0.56).translate(0, 4.17, -0.9), '#3b3f45'),
+    part(new THREE.BoxGeometry(0.35, 0.16, 0.5).translate(0, 4.05, -0.9), '#fff2c4', 0, SURF.light),
   ]);
 }
 
@@ -94,7 +97,7 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
     pointFilter: inTown,
   });
   // Laterne zur Straße drehen: Arm zeigt Richtung Fahrbahn
-  group.add(chunked('laternen', lampGeometry(), lamps.map((p, i) => ({ ...p, rot: p.rot + (i % 2 ? Math.PI / 2 : -Math.PI / 2) })), 700, true));
+  group.add(chunked('laternen', lampGeometry(), lamps.map((p, i) => ({ ...p, rot: p.rot + (i % 2 ? Math.PI / 2 : -Math.PI / 2) })), 700, true, sharedHouseMaterial()));
 
   // Leitpfosten auf Landstraßen
   const posts = roadside(terrain, roads, {

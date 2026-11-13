@@ -27,11 +27,15 @@ export interface GraphicsSettings {
   surfaces: boolean;
   /** Aussehen der Anzeige (keine Grafiklast, wird von Voreinstellungen nicht verändert). */
   hud: HudStyle;
+  /** Immer Tag oder Tag-Nacht-Zyklus (keine Grafiklast, bleibt bei Voreinstellungen erhalten). */
+  dayNight: DayNightMode;
 }
+
+export type DayNightMode = 'tag' | 'zyklus';
 
 export type HudStyle = 'standard' | 'radcomputer';
 
-export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud'>> = {
+export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud' | 'dayNight'>> = {
   niedrig: { pixelRatio: 1, shadowMapSize: 1024, grassDistance: 0, grassDensity: 4, waveCell: 0, ao: false, bloom: false, detailDistance: 0.6, surfaces: false },
   mittel: { pixelRatio: 1.5, shadowMapSize: 2048, grassDistance: 70, grassDensity: 6, waveCell: 16, ao: false, bloom: false, detailDistance: 1, surfaces: true },
   hoch: { pixelRatio: 2, shadowMapSize: 4096, grassDistance: 120, grassDensity: 9, waveCell: 8, ao: true, bloom: true, detailDistance: 1.5, surfaces: true },
@@ -54,8 +58,8 @@ export const LIMITS = {
   waveCell: [0, 16, 8] as const,
 };
 
-export function presetSettings(level: QualityLevel, hud: HudStyle = 'standard'): GraphicsSettings {
-  return { preset: level, ...PRESETS[level], hud };
+export function presetSettings(level: QualityLevel, hud: HudStyle = 'standard', dayNight: DayNightMode = 'zyklus'): GraphicsSettings {
+  return { preset: level, ...PRESETS[level], hud, dayNight };
 }
 
 const KEY = 'freeride-ng.graphics';
@@ -83,6 +87,7 @@ export function sanitizeSettings(raw: unknown): GraphicsSettings {
     detailDistance: clampNum(r.detailDistance, LIMITS.detailDistance.min, LIMITS.detailDistance.max, base.detailDistance),
     surfaces: typeof r.surfaces === 'boolean' ? r.surfaces : base.surfaces,
     hud: r.hud === 'radcomputer' ? 'radcomputer' : 'standard',
+    dayNight: r.dayNight === 'tag' ? 'tag' : 'zyklus',
   };
 }
 
@@ -90,7 +95,9 @@ export function sanitizeSettings(raw: unknown): GraphicsSettings {
 export function loadSettings(search = location.search): GraphicsSettings {
   const params = new URLSearchParams(search);
   const fromUrl = params.get('quality');
-  if (isLevel(fromUrl)) return presetSettings(fromUrl, params.get('hud') === 'radcomputer' ? 'radcomputer' : 'standard');
+  if (isLevel(fromUrl)) {
+    return presetSettings(fromUrl, params.get('hud') === 'radcomputer' ? 'radcomputer' : 'standard', params.get('tag') !== null ? 'tag' : 'zyklus');
+  }
   try {
     const stored = localStorage.getItem(KEY);
     if (stored) return sanitizeSettings(JSON.parse(stored));

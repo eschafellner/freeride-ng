@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DayNight } from './dayNight';
 import { createGrass, type Grass } from './grass';
 import { setHouseSurfaces } from './houses';
 import { lod } from './lod';
@@ -14,6 +15,7 @@ import { createWater, type Water } from './water';
  */
 export class GraphicsController {
   readonly water: Water;
+  readonly dayNight: DayNight;
   private grass: Grass | null = null;
   private postfx: PostFx | null = null;
   private current: GraphicsSettings | null = null;
@@ -22,7 +24,10 @@ export class GraphicsController {
     private readonly bundle: SceneBundle,
     private readonly terrain: TerrainUniforms,
     settings: GraphicsSettings,
+    /** Startzeit im Tag-Nacht-Zyklus in s (Standard: Vormittag). */
+    startTime?: number,
   ) {
+    this.dayNight = new DayNight(bundle, settings.dayNight, startTime);
     this.water = createWater(settings.waveCell, terrain);
     bundle.scene.add(this.water.group);
     this.apply(settings);
@@ -69,6 +74,7 @@ export class GraphicsController {
     }
 
     lod.setScale(s.detailDistance);
+    this.dayNight.setMode(s.dayNight);
     setHouseSurfaces(s.surfaces);
 
     document.body.classList.toggle('hud-radcomputer', s.hud === 'radcomputer');

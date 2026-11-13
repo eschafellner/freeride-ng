@@ -25,9 +25,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Häuser: Oberflächen-Shader, echte Dächer, Häuserzeilen im Ortskern | ✅ |
 | Phase 6, Schritt 1: Performance (Detailstufen, Kacheln) | ✅ |
 | Phase 6, Schritt 2: Glutsteppe hinter der Hafenbrücke (ab Level 3) | ✅ |
-| Phase 6, Schritt 3: Tag-Nacht-Wechsel | ⏭ erst gemeinsam besprechen |
+| Phase 6, Schritt 3: Tag-Nacht-Wechsel mit Fahrradlicht | ✅ |
+| Phase 6: weitere Gebiete (Passweg/Kogel, Spiegelseen, Nordkap), Wetter, Sound | ⏭ offen |
 
-Qualität: 194 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 201 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -42,6 +43,7 @@ npm test             # Tests
 - Grafik: Taste `G` oder per `&quality=niedrig|mittel|hoch`, feste Kamera mit `&cam=x,y,z,zielX,zielY,zielZ`
 - Glutsteppe: `/?demo&edge=lange-gerade&s=150` (im Demo-Modus sind alle Gebiete offen, `&locked` zeigt die Schranke)
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
+- Tageszeit: `/?demo&uhr=22&licht` (Nacht mit Fahrradlicht), `&uhr=17.6` Abendrot
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
 
 ## Steuerung
@@ -52,7 +54,8 @@ npm test             # Tests
 | ↑ / ↓ | geradeaus / Kehrtwende |
 | Q / E | leichter / schwerer schalten |
 | M · P · T | Karte · Pause · Testanzeige |
-| G | Grafik-Einstellungen (pausiert die Fahrt) |
+| G | Grafik-Einstellungen (pausiert die Fahrt), dort auch Tag-Nacht-Zyklus oder Immer Tag |
+| L | Fahrradlicht an/aus (Gamepad: Y) |
 | Esc oder STOP-Button | Notstopp (Widerstand sofort aufs Minimum) |
 | W / S | Simulator: Trittfrequenz ±5 |
 | R / F | Simulator: stärker / schwächer treten (±100 W) |
@@ -92,6 +95,10 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Dorfstraße liegt im Einschnitt, die Weinberge sieht man von dort kaum
 - Namen der Regionen sind noch Arbeitstitel
 
+**Tag-Nacht-Wechsel selbst prüfen:**
+- Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
+- Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
+
 **Glutsteppe selbst prüfen:**
 - Ab Level 3 öffnet sich die Schranke an der Hafenbrücke (Meldung „Neues Gebiet“). Level und Status stehen auf der Karte (`M`)
 - Gefallen Bucht, Brücke, Rotklamm und Tafelberge? Formen in `terrainGen.ts` (`BAY`, `CANYON`, `MESAS`)
@@ -108,15 +115,14 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Segmente fahren und eine Bestzeit setzen, dann den Ghost beim zweiten Versuch ansehen
 - Passen XP-Werte und Levelkurve zum Gefühl? (Werte in `XP` und `xpForNextLevel`)
 
-## Nächster Schritt: Phase 6, Schritt 3 (Tag-Nacht-Wechsel)
+## Nächster Schritt
 
-Vorher gemeinsam besprechen, wie der Tag-Nacht-Wechsel aussehen soll (Wunsch aus der Session
-vom 13.11.2026). Startprompt:
+Phase 6 weiter: nächstes Gebiet (Passweg zum Hohen Kogel als Bergregion), Wetter oder Sound.
+Startprompt:
 
 ```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Wir wollen den Tag-Nacht-Wechsel umsetzen.
-Mach mir zuerst Vorschläge zur Umsetzung (Zeitablauf, Licht, Himmel, Lampen und Fenster,
-Einfluss aufs Spiel, Grafikstufen) und lass uns das gemeinsam diskutieren, bevor du baust.
+Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns das nächste Gebiet planen:
+den Passweg zum Hohen Kogel (Serpentinen, Gipfel mit Aussicht), freigeschaltet über das Level.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

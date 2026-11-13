@@ -49,6 +49,7 @@ export class GraphicsPanel {
         <label for="g-waves">Wellen</label>${select('g-waves', LIMITS.waveCell, WAVE_LABEL)}<span></span>
         <label for="g-ao">Kontaktschatten</label><input type="checkbox" id="g-ao"><span></span>
         <label for="g-bloom">Leuchten (Bloom)</label><input type="checkbox" id="g-bloom"><span></span>
+        <label for="g-daynight">Tageszeit</label><select id="g-daynight"><option value="zyklus">Tag-Nacht-Zyklus</option><option value="tag">Immer Tag</option></select><span></span>
         <label for="g-hud">Anzeige</label><select id="g-hud"><option value="standard">Standard</option><option value="radcomputer">Fahrradcomputer</option></select><span></span>
         <label>Bildrate</label><b id="g-fps">–</b><span></span>
       </div>
@@ -56,7 +57,7 @@ export class GraphicsPanel {
       <button id="g-close" class="primary">Fertig <kbd>G</kbd></button>`;
 
     for (const b of this.el.querySelectorAll<HTMLButtonElement>('[data-preset]')) {
-      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel, this.settings.hud)));
+      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel, this.settings.hud, this.settings.dayNight)));
     }
     const $ = <T extends HTMLElement>(id: string) => this.el.querySelector<T>(`#${id}`)!;
     const custom = (patch: Partial<GraphicsSettings>) => this.set({ ...this.settings, ...patch, preset: 'eigene' });
@@ -72,6 +73,8 @@ export class GraphicsPanel {
     // Die Anzeige ist keine Grafiklast: Voreinstellung bleibt erhalten
     $<HTMLSelectElement>('g-hud').addEventListener('change', (e) =>
       this.set({ ...this.settings, hud: (e.target as HTMLSelectElement).value === 'radcomputer' ? 'radcomputer' : 'standard' }));
+    $<HTMLSelectElement>('g-daynight').addEventListener('change', (e) =>
+      this.set({ ...this.settings, dayNight: (e.target as HTMLSelectElement).value === 'tag' ? 'tag' : 'zyklus' }));
     $('g-close').addEventListener('click', () => this.onClose?.());
   }
 
@@ -111,5 +114,6 @@ export class GraphicsPanel {
     $<HTMLInputElement>('g-ao').checked = s.ao;
     $<HTMLInputElement>('g-bloom').checked = s.bloom;
     $<HTMLSelectElement>('g-hud').value = s.hud;
+    $<HTMLSelectElement>('g-daynight').value = s.dayNight;
   }
 }

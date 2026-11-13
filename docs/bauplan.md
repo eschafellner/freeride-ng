@@ -260,6 +260,15 @@ Offen aus Phase 5:
 - Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
 - Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
 
+**13.11.2026, Phase 6: Tag-Nacht-Wechsel** (Vorgaben aus dem Gespräch):
+- Im Grafikmenü wählbar: **Tag-Nacht-Zyklus** (Standard) oder **Immer Tag** (sieht aus wie vorher)
+- Ein Tag dauert 30 Minuten: 18 Minuten Tag, 12 Minuten Nacht. Die Nacht beginnt mit 1 Minute Abenddämmerung und endet mit 1 Minute Morgendämmerung. Auf der Uhr im HUD: Sonnenaufgang 6:00, Sonnenuntergang 18:00. Die Zeit läuft nur während der Fahrt (nicht in Pause und Menü), jede Sitzung beginnt am Vormittag
+- Sonne geht im Osten auf, steht mittags im Süden und geht im Westen unter, mit Abendrot. Nachts zieht der Mond über den Himmel (Scheibe mit Lichthof), dazu Sterne. Der Mond ist das Schattenlicht der Nacht
+- Nacht etwa Stufe 6 von 10: blaues Mondlicht, Himmelslicht knapp halb so stark wie am Tag. Farben und Stärken in `PALETTE` (`src/game/dayCycle.ts`)
+- Beleuchtung: Straßenlaternen, Brückenlampen, Wandleuchten und Schaufenster leuchten, etwa 30 % der Fenster sind warm erleuchtet. Wasser und Wolken werden nachts dunkler
+- **Fahrradlicht** mit `L` (Gamepad Y) oder Klick auf „Licht“ im HUD: Scheinwerfer mit Lichtkegel, Lampe vorn, rotes Rücklicht. Die Wahl bleibt im Browser gespeichert
+- Keine Folgen fürs Spiel (bewusst)
+
 **13.11.2026, Phase 6 begonnen: Performance und Glutsteppe:**
 - Performance (`src/game/lod.ts`): Häuser, Bäume und Reben haben ein einfaches Fernmodell. Je Modell gibt es ein Nah- und ein Fernmesh, deren Instanzen beim Fahren neu verteilt werden (`DynamicLod`). Kleinteile (Trittsteine, Kiesel, Zäune, Leitpfosten, Laternen) liegen in Kacheln mit eigener Hüllkugel und werden ab einer Entfernung ausgeblendet (`LodInstances`). Wolken sind ein Mesh, das Gelände ist in Kacheln geteilt, tiefer Meeresgrund ist eine flache Platte
 - Messung (headless, gleiche Kamerapositionen): vorher 4,2 Mio. Dreiecke und 180 Zeichenaufrufe pro Bild in der Marktstraße, jetzt 0,9–1,5 Mio. Dreiecke und 110–190 Aufrufe, obwohl die Welt 2,5-mal so groß ist
@@ -274,7 +283,9 @@ Offen aus Phase 6 (bisher):
 
 - [ ] Glutsteppe am echten Rad fahren: passen Steigungen und Länge? Rotklamm-Anstieg ggf. als Bergwertung
 - [ ] Bildrate im echten Browser auf allen Stufen messen
-- [ ] Tag-Nacht-Wechsel: Umsetzung gemeinsam besprechen (Schritt 3)
+- [x] Tag-Nacht-Wechsel (siehe oben)
+- [ ] Tag-Nacht-Wechsel am echten Bildschirm prüfen: Ist die Nacht hell genug (Stufe 6)? Leuchten Fenster und Laternen passend? Werte in `PALETTE` und `houseGlow` (`houses.ts`)
+- [ ] Optional: Lichtkegel der Laternen auf dem Boden, Mond mit Struktur
 - [ ] Weitere Gebiete: Passweg zum Hohen Kogel, Spiegelseen, Nordkap
 
 **13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**

@@ -88,7 +88,7 @@ function bridgeParts(e: RoadEdge, terrain: Heightfield): THREE.BufferGeometry[] 
         const lx = c.x - d.dz * side * (DECK_HALF - 0.2);
         const lz = c.z + d.dx * side * (DECK_HALF - 0.2);
         p.push(part(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 6).translate(lx, c.y + 2.6, lz), '#3b3f45'));
-        p.push(part(new THREE.BoxGeometry(0.34, 0.42, 0.34).translate(lx, c.y + 4.3, lz), '#fff2c4'));
+        p.push(part(new THREE.BoxGeometry(0.34, 0.42, 0.34).translate(lx, c.y + 4.3, lz), '#fff2c4', 0, SURF.light));
         p.push(part(new THREE.ConeGeometry(0.32, 0.3, 4).rotateY(Math.PI / 4).translate(lx, c.y + 4.66, lz), '#3b3f45'));
       }
     }

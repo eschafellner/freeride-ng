@@ -254,6 +254,8 @@ button.link { background: none; border: none; color: #8cc4ff; padding: 0; text-d
 /* --- Phase 5: Level, Segmente, Erfolge ------------------------------------ */
 
 .m.level span { color: #ffd23f; }
+.m.light { cursor: pointer; }
+.m.light.on span { color: #fff2a8; text-shadow: 0 0 8px rgba(255, 230, 140, 0.8); }
 .xpbar {
   flex-basis: 100%;
   position: relative;
