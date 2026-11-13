@@ -68,28 +68,32 @@ async function main() {
   const bundle = createScene($<HTMLCanvasElement>('scene'));
   const { scene, camera, sun } = bundle;
   const terrainMesh = createTerrainMesh(world.terrain, world.roads, world.seed);
+  terrainMesh.mesh.name = 'gelaende';
   scene.add(terrainMesh.mesh);
   const terrainUniforms = createTerrainUniforms(world.terrain, world.roads, terrainMesh.ground);
   const graphics = new GraphicsController(bundle, terrainUniforms, loadSettings());
-  scene.add(createRoadMesh(world.roads));
-  scene.add(createPaving(world.terrain, world.roads));
+  scene.add(Object.assign(createRoadMesh(world.roads), { name: 'wege' }));
+  scene.add(Object.assign(createPaving(world.terrain, world.roads), { name: 'pflaster' }));
   const landmarks = createLandmarks(world.terrain, world.roads);
   // Gepflasterte Plätze frei von Häusern und Bäumen halten
   for (const p of PLAZAS) {
     const n = world.roads.nodes.get(p.node);
     if (n) landmarks.reserved.push({ x: n.x, z: n.z, r: p.radius + 6 });
   }
+  landmarks.group.name = 'wahrzeichen';
   scene.add(landmarks.group);
   const props = createProps(world.terrain, world.roads, world.seed, landmarks.reserved);
+  props.name = 'gebaeude';
   scene.add(props);
   // Wege zu den Haustüren: kein Gras auf den Trittsteinen
   addMaskLines(terrainUniforms, props.userData.pathLines as { x: number; z: number }[][], 1.6);
   // Hausgrundrisse: kein Gras an den Wänden und vor den Fenstern
   addMaskPolygons(terrainUniforms, props.userData.footprints as { x: number; z: number }[][]);
-  scene.add(createDetails(world.terrain, world.roads, world.seed));
+  scene.add(Object.assign(createDetails(world.terrain, world.roads, world.seed), { name: 'details' }));
   const poiMeshes = new PoiMeshes(pois, world.terrain, progress.collected);
+  poiMeshes.group.name = 'pois';
   scene.add(poiMeshes.group);
-  scene.add(createSegmentMarkers(segments));
+  scene.add(Object.assign(createSegmentMarkers(segments), { name: 'segmente' }));
   const segmentRoutes: MapRoute[] = segments.map((seg) => {
     const points: { x: number; z: number }[] = [];
     for (let d = 0; d <= seg.length; d += 10) points.push(pointOnSegment(seg, d));
@@ -113,10 +117,12 @@ async function main() {
   }
 
   const model = new RiderModel();
+  model.root.name = 'fahrer';
   scene.add(model.root);
   /** Ghost: die eigene Bestfahrt im laufenden Segment. */
   const ghost = new RiderModel().makeGhost();
   ghost.root.visible = false;
+  ghost.root.name = 'ghost';
   scene.add(ghost.root);
   const rig = new CameraRig(camera, world.terrain);
   const aheadVec = new THREE.Vector3();
@@ -619,6 +625,50 @@ async function main() {
     if (!bigmap.hidden) drawBigMap();
   });
 
+  // --- Entwicklung: ?stats schreibt Zeichenaufrufe und die größten Meshes in die Konsole ----
+  const statsLog = params.has('stats');
+  let statsDone = false;
+  function logSceneStats() {
+    const info = bundle.renderer.info.render;
+    console.log(`STATS fps-frame calls=${info.calls} triangles=${info.triangles}`);
+    // Sichtbare Meshes je Gruppe (ohne Blickfeld-Test)
+    const vis = new Map<string, { n: number; tris: number }>();
+    scene.traverseVisible((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      let top: THREE.Object3D = m;
+      while (top.parent && top.parent !== scene) top = top.parent;
+      const key = top.name || top.type;
+      const g = m.geometry;
+      const tris = ((g.index ? g.index.count : g.attributes.position!.count) / 3) * ((m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1);
+      const e = vis.get(key) ?? { n: 0, tris: 0 };
+      e.n++;
+      e.tris += tris;
+      vis.set(key, e);
+    });
+    console.log(`STATS sichtbar ${[...vis].map(([k, v]) => `${k}:${v.n}/${Math.round(v.tris / 1000)}k`).join(' ')}`);
+    if (statsDone) return;
+    statsDone = true;
+    const rows: { name: string; tris: number; count: number; total: number }[] = [];
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !m.geometry) return;
+      const g = m.geometry;
+      const tris = (g.index ? g.index.count : g.attributes.position!.count) / 3;
+      const count = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1;
+      let p: THREE.Object3D | null = m;
+      const path: string[] = [];
+      while (p) {
+        if (p.name) path.unshift(p.name);
+        p = p.parent;
+      }
+      rows.push({ name: path.join('/') || m.type, tris, count, total: tris * count });
+    });
+    rows.sort((a, b) => b.total - a.total);
+    console.log(`STATS meshes=${rows.length} total=${rows.reduce((s, r) => s + r.total, 0)}`);
+    for (const r of rows.slice(0, 25)) console.log(`STATS ${r.name} tris=${r.tris} x${r.count} = ${r.total}`);
+  }
+
   // --- Spielschleife ---------------------------------------------------------------------
 
   let clock = 0;
@@ -719,7 +769,12 @@ async function main() {
       const ms = (fpsTime / fpsFrames) * 1000;
       fpsFrames = 0;
       fpsTime = 0;
-      if (!testPanel.hidden) tp('fps').textContent = `${Math.round(fps)} fps · ${ms.toFixed(1)} ms`;
+      if (!testPanel.hidden) {
+        tp('fps').textContent = `${Math.round(fps)} fps · ${ms.toFixed(1)} ms`;
+        const info = bundle.renderer.info.render;
+        tp('draw').textContent = `${info.calls} · ${(info.triangles / 1000).toFixed(0)} k`;
+      }
+      if (statsLog) logSceneStats();
       graphicsPanel.showFps(fps, ms);
     }
     requestAnimationFrame(frame);

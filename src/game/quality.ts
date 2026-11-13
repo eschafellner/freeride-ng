@@ -21,6 +21,10 @@ export interface GraphicsSettings {
   /** Umgebungsverdeckung (Kontaktschatten). */
   ao: boolean;
   bloom: boolean;
+  /** Faktor für die Entfernung, bis zu der Detailmodelle gezeigt werden (1 = Standard). */
+  detailDistance: number;
+  /** Oberflächen der Häuser (Putz, Ziegel, Fachwerk) im Shader. */
+  surfaces: boolean;
   /** Aussehen der Anzeige (keine Grafiklast, wird von Voreinstellungen nicht verändert). */
   hud: HudStyle;
 }
@@ -28,9 +32,9 @@ export interface GraphicsSettings {
 export type HudStyle = 'standard' | 'radcomputer';
 
 export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud'>> = {
-  niedrig: { pixelRatio: 1, shadowMapSize: 1024, grassDistance: 0, grassDensity: 4, waveCell: 0, ao: false, bloom: false },
-  mittel: { pixelRatio: 1.5, shadowMapSize: 2048, grassDistance: 70, grassDensity: 6, waveCell: 16, ao: false, bloom: false },
-  hoch: { pixelRatio: 2, shadowMapSize: 4096, grassDistance: 120, grassDensity: 9, waveCell: 8, ao: true, bloom: true },
+  niedrig: { pixelRatio: 1, shadowMapSize: 1024, grassDistance: 0, grassDensity: 4, waveCell: 0, ao: false, bloom: false, detailDistance: 0.6, surfaces: false },
+  mittel: { pixelRatio: 1.5, shadowMapSize: 2048, grassDistance: 70, grassDensity: 6, waveCell: 16, ao: false, bloom: false, detailDistance: 1, surfaces: true },
+  hoch: { pixelRatio: 2, shadowMapSize: 4096, grassDistance: 120, grassDensity: 9, waveCell: 8, ao: true, bloom: true, detailDistance: 1.5, surfaces: true },
 };
 
 export const QUALITY_LABEL: Record<QualityLevel | 'eigene', string> = {
@@ -45,6 +49,7 @@ export const LIMITS = {
   grassDistance: { min: 0, max: 200, step: 10 },
   grassDensity: { min: 2, max: 12, step: 1 },
   pixelRatio: { min: 0.75, max: 2, step: 0.25 },
+  detailDistance: { min: 0.5, max: 2, step: 0.25 },
   shadowMapSize: [0, 1024, 2048, 4096] as const,
   waveCell: [0, 16, 8] as const,
 };
@@ -75,6 +80,8 @@ export function sanitizeSettings(raw: unknown): GraphicsSettings {
     waveCell: oneOf(r.waveCell, LIMITS.waveCell, base.waveCell as 16),
     ao: typeof r.ao === 'boolean' ? r.ao : base.ao,
     bloom: typeof r.bloom === 'boolean' ? r.bloom : base.bloom,
+    detailDistance: clampNum(r.detailDistance, LIMITS.detailDistance.min, LIMITS.detailDistance.max, base.detailDistance),
+    surfaces: typeof r.surfaces === 'boolean' ? r.surfaces : base.surfaces,
     hud: r.hud === 'radcomputer' ? 'radcomputer' : 'standard',
   };
 }

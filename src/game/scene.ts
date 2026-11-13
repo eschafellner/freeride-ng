@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export const SKY = {
   top: new THREE.Color('#3f86d4'),
@@ -80,25 +81,34 @@ function createClouds(count: number, seed = 7): THREE.Group {
   const mat = new THREE.MeshLambertMaterial({
     color: '#ffffff', emissive: '#c9d6e2', emissiveIntensity: 0.55, flatShading: true, fog: false,
   });
+  // Alle Wolken in einem Mesh: ein Zeichenaufruf statt über hundert
   const puff = new THREE.IcosahedronGeometry(1, 1);
+  const parts: THREE.BufferGeometry[] = [];
+  const m = new THREE.Matrix4();
+  const local = new THREE.Object3D();
+  const cloud = new THREE.Object3D();
   for (let c = 0; c < count; c++) {
-    const cloud = new THREE.Group();
-    const parts = 3 + Math.floor(rnd() * 4);
+    const n = 3 + Math.floor(rnd() * 4);
     const size = 40 + rnd() * 60;
-    for (let p = 0; p < parts; p++) {
-      const m = new THREE.Mesh(puff, mat);
+    const puffs: THREE.Matrix4[] = [];
+    for (let p = 0; p < n; p++) {
       const r = size * (0.45 + rnd() * 0.45);
-      m.scale.set(r * (1.1 + rnd() * 0.5), r * (0.45 + rnd() * 0.2), r);
-      m.position.set((p - parts / 2) * size * 0.55 + rnd() * 10, rnd() * size * 0.15, (rnd() - 0.5) * size * 0.6);
-      m.rotation.y = rnd() * Math.PI;
-      cloud.add(m);
+      local.scale.set(r * (1.1 + rnd() * 0.5), r * (0.45 + rnd() * 0.2), r);
+      local.position.set((p - n / 2) * size * 0.55 + rnd() * 10, rnd() * size * 0.15, (rnd() - 0.5) * size * 0.6);
+      local.rotation.set(0, rnd() * Math.PI, 0);
+      local.updateMatrix();
+      puffs.push(local.matrix.clone());
     }
     const ang = rnd() * Math.PI * 2;
     const dist = 500 + rnd() * 2600;
     cloud.position.set(Math.cos(ang) * dist, 380 + rnd() * 320, Math.sin(ang) * dist);
-    cloud.rotation.y = rnd() * Math.PI;
-    group.add(cloud);
+    cloud.rotation.set(0, rnd() * Math.PI, 0);
+    cloud.updateMatrix();
+    for (const pm of puffs) parts.push(puff.clone().applyMatrix4(m.multiplyMatrices(cloud.matrix, pm)));
   }
+  const mesh = new THREE.Mesh(mergeGeometries(parts)!, mat);
+  mesh.frustumCulled = false;
+  group.add(mesh);
   return group;
 }
 
@@ -122,6 +132,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   sky.onBeforeRender = () => sky.position.copy(camera.position);
 
   const clouds = createClouds(26);
+  clouds.name = 'wolken';
   scene.add(clouds);
 
   scene.add(new THREE.HemisphereLight('#d8ecff', '#6b7f45', 1.25));

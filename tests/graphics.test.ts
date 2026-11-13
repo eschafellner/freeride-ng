@@ -64,16 +64,19 @@ describe('Grafik-Einstellungen', () => {
     expect(h.shadowMapSize).toBeGreaterThan(m.shadowMapSize);
     expect(h.grassDistance).toBeGreaterThan(m.grassDistance);
     expect(h.ao && !m.ao && !n.ao).toBe(true);
+    expect(n.detailDistance).toBeLessThan(m.detailDistance);
+    expect(h.detailDistance).toBeGreaterThan(m.detailDistance);
+    expect(!n.surfaces && m.surfaces && h.surfaces).toBe(true);
   });
 
   it('gespeicherte Werte werden geprüft und begrenzt', () => {
     const s = sanitizeSettings({
       preset: 'eigene', pixelRatio: 9, shadowMapSize: 1234, grassDistance: 150,
-      grassDensity: 'viel', waveCell: 8, ao: 'ja', bloom: true,
+      grassDensity: 'viel', waveCell: 8, ao: 'ja', bloom: true, detailDistance: 7, surfaces: false,
     });
     expect(s).toEqual({
       preset: 'eigene', pixelRatio: 2, shadowMapSize: 2048, grassDistance: 150,
-      grassDensity: 6, waveCell: 8, ao: false, bloom: true, hud: 'standard',
+      grassDensity: 6, waveCell: 8, ao: false, bloom: true, detailDistance: 2, surfaces: false, hud: 'standard',
     });
     expect(sanitizeSettings(null)).toEqual(presetSettings('mittel'));
   });

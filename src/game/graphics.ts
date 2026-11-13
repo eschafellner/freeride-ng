@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { createGrass, type Grass } from './grass';
+import { setHouseSurfaces } from './houses';
+import { lod } from './lod';
 import { createPostFx, type PostFx } from './postfx';
 import type { GraphicsSettings } from './quality';
 import type { SceneBundle } from './scene';
@@ -66,11 +68,15 @@ export class GraphicsController {
       this.postfx.setEffects(s.ao, s.bloom);
     }
 
+    lod.setScale(s.detailDistance);
+    setHouseSurfaces(s.surfaces);
+
     document.body.classList.toggle('hud-radcomputer', s.hud === 'radcomputer');
     this.current = { ...s };
   }
 
   update(time: number, camera: THREE.Camera): void {
+    lod.update(camera.position);
     this.water.update(time);
     this.grass?.update(time, camera);
   }

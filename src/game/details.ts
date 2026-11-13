@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DynamicLod, lod, LodInstances, type LodItem } from './lod';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Heightfield } from '../world/heightfield';
 import { REBLAND, roadside, vineyardRows, type Placement } from '../world/placement';
@@ -23,29 +24,20 @@ export function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 
 const material = () => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 
-/** Ein InstancedMesh aus Platzierungen. */
-export function instanced(
-  geo: THREE.BufferGeometry,
-  items: Placement[],
-  opts: { castShadow?: boolean; scale?: (i: number) => number } = {},
-): THREE.InstancedMesh {
-  const mesh = new THREE.InstancedMesh(geo, material(), Math.max(1, items.length));
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const up = new THREE.Vector3(0, 1, 0);
-  const pos = new THREE.Vector3();
-  const sc = new THREE.Vector3();
-  items.forEach((p, i) => {
-    q.setFromAxisAngle(up, p.rot);
-    const s = opts.scale?.(i) ?? 1;
-    sc.set(s, s, s);
-    pos.set(p.x, p.y, p.z);
-    mesh.setMatrixAt(i, m.compose(pos, q, sc));
-  });
-  mesh.count = items.length;
-  mesh.castShadow = opts.castShadow ?? false;
-  mesh.receiveShadow = true;
-  return mesh;
+
+const toItem = (p: Placement): LodItem => ({
+  matrix: new THREE.Matrix4().compose(
+    new THREE.Vector3(p.x, p.y, p.z),
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.rot),
+    new THREE.Vector3(1, 1, 1),
+  ),
+});
+
+/** Kleinteile am Weg in Kacheln, ab `hide` Metern ausgeblendet. */
+function chunked(name: string, geo: THREE.BufferGeometry, items: Placement[], hide: number, castShadow: boolean): THREE.Group {
+  if (items.length === 0) return new THREE.Group();
+  return lod.add(new LodInstances({ name, near: geo, material: material(), nearDist: hide, hideDist: hide, castShadow, cell: 250 },
+    items.map((p) => toItem(p)))).group;
 }
 
 // --- Modelle -------------------------------------------------------------------------
@@ -83,6 +75,10 @@ function vineGeometry(): THREE.BufferGeometry {
   ]);
 }
 
+function vineFarGeometry(): THREE.BufferGeometry {
+  return painted(new THREE.BoxGeometry(0.5, 1.2, 5).translate(0, 1.0, 0), '#55902f');
+}
+
 // --- Aufbau ---------------------------------------------------------------------------
 
 export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: number): THREE.Group {
@@ -98,7 +94,7 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
     pointFilter: inTown,
   });
   // Laterne zur Straße drehen: Arm zeigt Richtung Fahrbahn
-  group.add(instanced(lampGeometry(), lamps.map((p, i) => ({ ...p, rot: p.rot + (i % 2 ? Math.PI / 2 : -Math.PI / 2) })), { castShadow: true }));
+  group.add(chunked('laternen', lampGeometry(), lamps.map((p, i) => ({ ...p, rot: p.rot + (i % 2 ? Math.PI / 2 : -Math.PI / 2) })), 700, true));
 
   // Leitpfosten auf Landstraßen
   const posts = roadside(terrain, roads, {
@@ -106,7 +102,7 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
     edgeFilter: (e) => e.surface === 'asphalt',
     pointFilter: (x, z) => !inTown(x, z),
   });
-  group.add(instanced(delineatorGeometry(), posts));
+  group.add(chunked('leitpfosten', delineatorGeometry(), posts, 350, false));
 
   // Holzzäune im Rebland, einseitig, mit Lücken
   const fences = roadside(terrain, roads, {
@@ -114,7 +110,7 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
     edgeFilter: (e) => e.surface !== 'town',
     pointFilter: (x, z) => inRebland(x, z) && Math.sin(x / 70) * Math.cos(z / 55) > 0.1,
   });
-  group.add(instanced(fenceGeometry(), fences.map((p) => ({ ...p, y: p.y - 0.05 }))));
+  group.add(chunked('zaun', fenceGeometry(), fences.map((p) => ({ ...p, y: p.y - 0.05 })), 500, false));
 
   // Weinberge: jede Zeile in 5-m-Abschnitte, die dem Gelände folgen
   const vines: Placement[] = [];
@@ -128,7 +124,11 @@ export function createDetails(terrain: Heightfield, roads: RoadNetwork, seed: nu
       vines.push({ x, y: terrain.sample(x, z) - 0.05, z, rot });
     }
   }
-  group.add(instanced(vineGeometry(), vines, { castShadow: true }));
+  // Reben: nah mit Pfählen und Laub, in der Ferne nur ein grüner Streifen
+  group.add(lod.add(new DynamicLod({
+    name: 'reben', near: vineGeometry(), far: vineFarGeometry(), material: material(),
+    nearDist: 250, hideDist: 1500, castShadow: true, farShadow: false,
+  }, vines.map((p) => toItem(p)))).group);
 
   group.userData.counts = { lamps: lamps.length, posts: posts.length, fences: fences.length, vines: vines.length };
   return group;

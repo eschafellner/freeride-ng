@@ -120,6 +120,7 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
   });
 
   const group = new THREE.Group();
+  group.name = 'wasser';
   // Wellengitter über der Insel und ihrer Küste, außen eine flache Fläche
   const inner = INNER;
   const nearMesh = new THREE.Mesh(waveGrid(waveCell), mat);

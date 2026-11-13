@@ -43,6 +43,8 @@ export class GraphicsPanel {
         <label for="g-grass">Grasweite</label>${range('g-grass', LIMITS.grassDistance)}<output id="g-grass-v"></output>
         <label for="g-density">Grasdichte</label>${range('g-density', LIMITS.grassDensity)}<output id="g-density-v"></output>
         <label for="g-ratio">Bildschärfe</label>${range('g-ratio', LIMITS.pixelRatio)}<output id="g-ratio-v"></output>
+        <label for="g-detail">Detailweite</label>${range('g-detail', LIMITS.detailDistance)}<output id="g-detail-v"></output>
+        <label for="g-surfaces">Hausoberflächen</label><input type="checkbox" id="g-surfaces"><span></span>
         <label for="g-shadow">Schatten</label>${select('g-shadow', LIMITS.shadowMapSize, SHADOW_LABEL)}<span></span>
         <label for="g-waves">Wellen</label>${select('g-waves', LIMITS.waveCell, WAVE_LABEL)}<span></span>
         <label for="g-ao">Kontaktschatten</label><input type="checkbox" id="g-ao"><span></span>
@@ -61,6 +63,8 @@ export class GraphicsPanel {
     $<HTMLInputElement>('g-grass').addEventListener('input', (e) => custom({ grassDistance: Number((e.target as HTMLInputElement).value) }));
     $<HTMLInputElement>('g-density').addEventListener('input', (e) => custom({ grassDensity: Number((e.target as HTMLInputElement).value) }));
     $<HTMLInputElement>('g-ratio').addEventListener('input', (e) => custom({ pixelRatio: Number((e.target as HTMLInputElement).value) }));
+    $<HTMLInputElement>('g-detail').addEventListener('input', (e) => custom({ detailDistance: Number((e.target as HTMLInputElement).value) }));
+    $<HTMLInputElement>('g-surfaces').addEventListener('change', (e) => custom({ surfaces: (e.target as HTMLInputElement).checked }));
     $<HTMLSelectElement>('g-shadow').addEventListener('change', (e) => custom({ shadowMapSize: Number((e.target as HTMLSelectElement).value) }));
     $<HTMLSelectElement>('g-waves').addEventListener('change', (e) => custom({ waveCell: Number((e.target as HTMLSelectElement).value) }));
     $<HTMLInputElement>('g-ao').addEventListener('change', (e) => custom({ ao: (e.target as HTMLInputElement).checked }));
@@ -99,6 +103,9 @@ export class GraphicsPanel {
     $('g-density-v').textContent = String(s.grassDensity);
     $<HTMLInputElement>('g-ratio').value = String(s.pixelRatio);
     $('g-ratio-v').textContent = `${String(s.pixelRatio).replace('.', ',')}×`;
+    $<HTMLInputElement>('g-detail').value = String(s.detailDistance);
+    $('g-detail-v').textContent = `${String(s.detailDistance).replace('.', ',')}×`;
+    $<HTMLInputElement>('g-surfaces').checked = s.surfaces;
     $<HTMLSelectElement>('g-shadow').value = String(s.shadowMapSize);
     $<HTMLSelectElement>('g-waves').value = String(s.waveCell);
     $<HTMLInputElement>('g-ao').checked = s.ao;

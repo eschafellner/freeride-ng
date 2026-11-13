@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Heightfield } from '../world/heightfield';
+import { lod, LodInstances } from './lod';
 import { NOISE_GLSL } from './shaderChunks';
 
 /**
@@ -225,6 +226,10 @@ vec3 paving(vec3 col, vec2 xz) {
 vec3 houseSurface(vec3 col) {
   float kind = floor(vSurf.x + 0.5);
   if (kind < 0.5) return col;
+  #ifdef HOUSE_PLAIN
+    // Einfache Stufe: nur glatte Farben, Glas leicht aufgehellt
+    return kind > 5.5 && kind < 6.5 ? col * 1.3 : col;
+  #endif
   vec3 n = normalize(vHNorm);
   float u = abs(n.x) > abs(n.z) ? vHPos.z : vHPos.x;
   float y = vHPos.y;
@@ -244,6 +249,7 @@ vec3 houseSurface(vec3 col) {
  */
 export function houseMaterial(): THREE.MeshLambertMaterial {
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  mat.defines = {};
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -295,6 +301,22 @@ export function houseMaterial(): THREE.MeshLambertMaterial {
 
 /** Früherer Name, für getönte Kleinteile ohne Oberfläche (z. B. Blumen am Weg). */
 export const tintedMaterial = houseMaterial;
+
+let shared: THREE.MeshLambertMaterial | null = null;
+/** Ein Material für alle Häuser, damit die Grafikstufe es an einer Stelle umschalten kann. */
+export function sharedHouseMaterial(): THREE.MeshLambertMaterial {
+  return (shared ??= houseMaterial());
+}
+
+/** Oberflächen (Putz, Ziegel, Fachwerk …) ein- oder ausschalten. */
+export function setHouseSurfaces(on: boolean): void {
+  const m = sharedHouseMaterial();
+  const plain = 'HOUSE_PLAIN' in m.defines!;
+  if (plain === !on) return;
+  if (on) delete m.defines!.HOUSE_PLAIN;
+  else m.defines!.HOUSE_PLAIN = '';
+  m.needsUpdate = true;
+}
 
 // --- Farben ------------------------------------------------------------------------------
 
@@ -626,6 +648,8 @@ function balcony(width: number, y: number, z: number, rng: Rng): THREE.BufferGeo
 
 export interface HouseVariant {
   geometry: THREE.BufferGeometry;
+  /** Vereinfachtes Modell für die Ferne. */
+  far: THREE.BufferGeometry;
   /** Türmitte (x) und Vorderkante der Stufe (z) im Modell. */
   door: { x: number; z: number };
   kind: 'house' | 'townhouse';
@@ -722,7 +746,7 @@ function houseVariant(rng: Rng, shop = false): HouseVariant {
     const bx = doorX <= 0 ? doorX + 2.2 : doorX - 2.2;
     if (Math.abs(bx) < w / 2 - 0.8) parts.push(...bench(bx, d / 2));
   }
-  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'house', front: d / 2, width: w, depth: d, shop: shopWin };
+  return { ...withFar(parts), door: { x: doorX, z: d / 2 + 0.8 }, kind: 'house', front: d / 2, width: w, depth: d, shop: shopWin };
 }
 
 /**
@@ -815,7 +839,22 @@ function townhouseVariant(rng: Rng, w: number, shop = false): HouseVariant {
   }
   if (balconyFloor > 0) parts.push(...balcony(w - 1.0, balconyFloor * floorH + 0.1, d / 2, rng));
   if (rng() < 0.15) parts.push(...ivy(w, h, rng() < 0.5 ? 1 : -1, rng, d / 2 - 1.5));
-  return { geometry: mergeGeometries(parts)!, door: { x: doorX, z: d / 2 + 0.8 }, kind: 'townhouse', front: d / 2, width: w, depth: d, shop: shopWin };
+  return { ...withFar(parts), door: { x: doorX, z: d / 2 + 0.8 }, kind: 'townhouse', front: d / 2, width: w, depth: d, shop: shopWin };
+}
+
+/**
+ * Detailmodell und einfaches Fernmodell aus denselben Teilen: In der Ferne bleiben
+ * nur große Teile (Wände, Dach, Rinnen) und die Scheiben; Rahmen, Blumen, Efeu,
+ * Eckquader und Gitter fallen weg.
+ */
+function withFar(parts: THREE.BufferGeometry[]): { geometry: THREE.BufferGeometry; far: THREE.BufferGeometry } {
+  const size = new THREE.Vector3();
+  const far = parts.filter((g) => {
+    g.computeBoundingBox();
+    g.boundingBox!.getSize(size);
+    return Math.max(size.x, size.y, size.z) >= 1.4 || g.getAttribute('surf').getX(0) === SURF.glass;
+  });
+  return { geometry: mergeGeometries(parts)!, far: mergeGeometries(far)! };
 }
 
 /** Scheune: breit, niedrig, Holzbretter, großes Tor, Satteldach. */
@@ -951,20 +990,16 @@ export function createFrontPaths(paths: FrontPath[], terrain: Heightfield, rng: 
     lines.push(line);
   }
 
+  // Kleinkram am Weg nur in der Nähe zeigen (in Kacheln)
   const group = new THREE.Group();
-  const mesh = (geo: THREE.BufferGeometry, items: { m: THREE.Matrix4; c: THREE.Color }[], mat: THREE.Material, shadow: boolean) => {
-    const im = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length));
-    items.forEach((it, i) => {
-      im.setMatrixAt(i, it.m);
-      im.setColorAt(i, it.c);
-    });
-    im.count = items.length;
-    im.castShadow = shadow;
-    im.receiveShadow = true;
-    group.add(im);
+  const add = (name: string, geo: THREE.BufferGeometry, items: { m: THREE.Matrix4; c: THREE.Color }[], mat: THREE.Material) => {
+    if (items.length === 0) return;
+    group.add(lod.add(new LodInstances({ name, near: geo, material: mat, nearDist: 110, hideDist: 110, cell: 160 },
+      items.map((it) => ({ matrix: it.m, color: it.c })))).group);
   };
-  mesh(STONE, stones, new THREE.MeshLambertMaterial({ flatShading: true }), false);
-  mesh(PEBBLE, pebbles, new THREE.MeshLambertMaterial({ flatShading: true }), false);
-  mesh(flowerGeometry(), flowers, tintedMaterial(), false);
+  const plain = new THREE.MeshLambertMaterial({ flatShading: true });
+  add('trittsteine', STONE, stones, plain);
+  add('kiesel', PEBBLE, pebbles, plain);
+  add('wegblumen', flowerGeometry(), flowers, sharedHouseMaterial());
   return { group, lines };
 }

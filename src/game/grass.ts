@@ -73,6 +73,7 @@ interface LayerOptions {
 export function createGrass(distance: number, density: number, terrain: TerrainUniforms): Grass | null {
   if (distance <= 0) return null;
   const group = new THREE.Group();
+  group.name = 'gras';
   const time = { value: 0 };
   const cam = { value: new THREE.Vector2() };
   const nearR = Math.min(NEAR_RADIUS, distance);

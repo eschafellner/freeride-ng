@@ -8,9 +8,10 @@ import { townMask } from '../world/terrainGen';
 import { merged, painted } from './details';
 
 const pick = <T>(rng: () => number, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
-import { createFrontPaths, createHouseVariants, houseMaterial, part, SURF, TOWNHOUSE_DEPTH, TOWNHOUSE_WIDTHS, type FrontPath } from './houses';
+import { createFrontPaths, createHouseVariants, part, sharedHouseMaterial, SURF, TOWNHOUSE_DEPTH, TOWNHOUSE_WIDTHS, type FrontPath } from './houses';
 import { PLAZAS } from './shaderChunks';
 import { createShopFronts, type ShopPlacement } from './shopFronts';
+import { DynamicLod, lod, LodInstances } from './lod';
 import { assignShops, hasTerrace, type ShopSlot } from '../world/shops';
 
 // --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
@@ -29,6 +30,15 @@ function deciduous(): THREE.BufferGeometry {
     painted(new THREE.IcosahedronGeometry(2.3, 0).translate(0, 4.0, 0), '#6fa83e'),
     painted(new THREE.IcosahedronGeometry(1.6, 0).translate(0.9, 5.0, 0.4), '#7db648'),
   ]);
+}
+
+/** Fernmodelle: ein Kegel bzw. eine Krone, ohne Stamm (rund ein Viertel der Dreiecke). */
+function coniferFar(): THREE.BufferGeometry {
+  return painted(new THREE.ConeGeometry(2.1, 6.4, 5, 1, true).translate(0, 4.4, 0), '#437e36');
+}
+
+function deciduousFar(): THREE.BufferGeometry {
+  return painted(new THREE.IcosahedronGeometry(2.5, 0).translate(0, 4.2, 0), '#72aa41');
 }
 
 function bush(): THREE.BufferGeometry {
@@ -76,21 +86,6 @@ interface Instance {
   color?: THREE.Color;
 }
 
-function toMesh(geo: THREE.BufferGeometry, items: Instance[], castShadow = true): THREE.InstancedMesh {
-  const mesh = new THREE.InstancedMesh(
-    geo,
-    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
-    Math.max(1, items.length),
-  );
-  items.forEach((it, i) => {
-    mesh.setMatrixAt(i, it.matrix);
-    if (it.color) mesh.setColorAt(i, it.color);
-  });
-  mesh.count = items.length;
-  mesh.castShadow = castShadow;
-  mesh.receiveShadow = true;
-  return mesh;
-}
 
 /** Gedrehtes Rechteck im Grundriss: Mitte, Richtung der Breite (ax, az), halbe Maße. */
 interface Rect {
@@ -400,23 +395,24 @@ export function createProps(
     }
   }
 
-  const tinted = (geo: THREE.BufferGeometry, items: Instance[]) => {
-    const m = toMesh(geo, items);
-    m.material = houseMaterial();
-    return m;
-  };
-  const houseMat = houseMaterial();
+  // Häuser und Scheunen in Kacheln: Detailmodell bis 130 m, danach das Fernmodell
+  const houseMat = sharedHouseMaterial();
   variantLists.forEach((list, li) => list.forEach((v, vi) => {
-    if (instances[li]![vi]!.length === 0) return;
-    const m = tinted(v.geometry, instances[li]![vi]!);
-    m.material = houseMat;
-    group.add(m);
+    const items = instances[li]![vi]!;
+    if (items.length === 0) return;
+    group.add(lod.add(new DynamicLod({
+      name: `haus${li}-${vi}`, near: v.geometry, far: v.far, material: houseMat,
+      nearDist: 130, hideDist: 3000, castShadow: true, farShadow: false,
+    }, items)).group);
   }));
-  const barnMesh = toMesh(variants.barn, barns);
-  barnMesh.material = houseMat;
-  group.add(barnMesh);
+  if (barns.length > 0) {
+    group.add(lod.add(new LodInstances({
+      name: 'scheune', near: variants.barn, material: houseMat, nearDist: 3000, hideDist: 3000, castShadow: true, cell: 300,
+    }, barns)).group);
+  }
   if (aprons.length > 0) {
     const apronMesh = new THREE.Mesh(mergeGeometries(aprons)!, houseMat);
+    apronMesh.name = 'vorplaetze';
     apronMesh.receiveShadow = true;
     group.add(apronMesh);
   }
@@ -470,7 +466,19 @@ export function createProps(
   // Laubbäume leicht unterschiedlich getönt
   const leafTints = ['#ffffff', '#e8f0c8', '#f6e7a8', '#d9eec0'];
   leafy.forEach((t) => (t.color = new THREE.Color(leafTints[Math.floor(rng() * leafTints.length)]!)));
-  group.add(toMesh(conifer(), conifers), toMesh(deciduous(), leafy), toMesh(bush(), bushes, false), toMesh(rock(), rocks));
+  // Bäume, Büsche und Felsen in Kacheln; Bäume in der Ferne als einfache Form
+  const plantMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  const sets: [string, THREE.BufferGeometry, THREE.BufferGeometry | null, Instance[], number, number, boolean][] = [
+    ['nadelbaum', conifer(), coniferFar(), conifers, 220, 3000, true],
+    ['laubbaum', deciduous(), deciduousFar(), leafy, 220, 3000, true],
+    ['busch', bush(), null, bushes, 600, 600, false],
+    ['fels', rock(), null, rocks, 1400, 1400, true],
+  ];
+  for (const [name, near, far, items, nearDist, hideDist, shadow] of sets) {
+    if (items.length === 0) continue;
+    group.add(lod.add(new DynamicLod({ name, near, far, material: plantMat, nearDist, hideDist, castShadow: shadow, farShadow: false }, items)).group);
+  }
+
 
   // --- Schranken an gesperrten Wegenden ------------------------------------------------------
   for (const n of roads.nodes.values()) {
