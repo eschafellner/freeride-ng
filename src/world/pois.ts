@@ -36,7 +36,7 @@ export const POI_RADIUS: Record<PoiType, number> = {
 const c = (id: string, edgeId: string, t: number): PoiDef => ({ id, type: 'collectible', edgeId, t });
 const sign = (id: string, name: string, edgeId: string, t: number): PoiDef => ({ id, type: 'sign', name, edgeId, t });
 
-/** MVP: 15 Sammelobjekte, bevorzugt auf Wegen abseits der Hauptrunde. */
+/** 15 Sammelobjekte in Lumen und Rebland, 5 in der Glutsteppe, bevorzugt abseits der Hauptrunde. */
 export const MVP_POIS: PoiDef[] = [
   c('k01', 'prom-w', 0.5),
   c('k02', 'westhafen', 0.6),
@@ -71,6 +71,18 @@ export const MVP_POIS: PoiDef[] = [
   sign('s-hangdorf-w', 'Hangdorf', 'hangweg', 0.88),
   sign('s-hangdorf-n', 'Hangdorf', 'passstrasse', 0.07),
   sign('s-hangdorf-o', 'Hangdorf', 'aussicht-w', 0.92),
+
+  // Glutsteppe (ab Level 3)
+  c('k16', 'rotklamm', 0.45),
+  c('k17', 'sandweg', 0.5),
+  c('k18', 'kuestenstrasse', 0.6),
+  c('k19', 'plateauweg', 0.8),
+  c('k20', 'kammabstieg', 0.5),
+  { id: 'v-tafelberg', type: 'viewpoint', name: 'Tafelberg', nodeId: 'tafel' },
+  { id: 'v-glutplateau', type: 'viewpoint', name: 'Glutplateau', nodeId: 'plateau' },
+  sign('s-glutdorf-w', 'Glutdorf', 'steppenstrasse', 0.7),
+  sign('s-glutdorf-n', 'Glutdorf', 'lange-gerade', 0.12),
+  sign('s-glutdorf-o', 'Glutdorf', 'kapweg', 0.85),
 ];
 
 export function resolvePois(net: RoadNetwork, defs: PoiDef[] = MVP_POIS): Poi[] {

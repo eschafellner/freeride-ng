@@ -4,7 +4,7 @@ import { distanceToRoad, REBLAND } from '../world/placement';
 import { mulberry32 } from '../world/random';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
-import { townMask } from '../world/terrainGen';
+import { steppeMask, townMask } from '../world/terrainGen';
 import { merged, painted } from './details';
 
 const pick = <T>(rng: () => number, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
@@ -13,6 +13,7 @@ import { PLAZAS } from './shaderChunks';
 import { createShopFronts, type ShopPlacement } from './shopFronts';
 import { DynamicLod, lod, LodInstances } from './lod';
 import { assignShops, hasTerrace, type ShopSlot } from '../world/shops';
+import { REGIONS } from '../world/roadLayout';
 
 // --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
 
@@ -48,10 +49,19 @@ function bush(): THREE.BufferGeometry {
   ]);
 }
 
+function redRock(): THREE.BufferGeometry {
+  return merged([
+    painted(new THREE.DodecahedronGeometry(1, 0).scale(1.3, 1.1, 1).translate(0, 0.5, 0), '#a8553a'),
+    painted(new THREE.DodecahedronGeometry(0.6, 0).scale(1, 0.8, 1).translate(0.9, 0.3, 0.4), '#8a4330'),
+  ]);
+}
+
 function rock(): THREE.BufferGeometry {
   return painted(new THREE.DodecahedronGeometry(1, 0).scale(1.4, 0.8, 1.1).translate(0, 0.3, 0), '#9a958c');
 }
 
+/** Glutsteppe: sonnige, erdige Töne. */
+const STEPPE_WALLS = ['#e8c49a', '#f0d6b0', '#d9a77e', '#f2e3c8', '#e4b48c', '#efcf9e'];
 const WALL_COLORS = ['#f2e6d0', '#e8d4b0', '#f5efe6', '#e6c9a8', '#d9e2e6', '#f0d9c8', '#e9c3b5'];
 const TOWNHOUSE_COLORS = ['#e8b796', '#f0d58c', '#c9d8e0', '#f2e6d0', '#d8b0a0', '#e0e8c8', '#f3c9a0', '#d9c7a7', '#b9cfc0', '#efe0b8', '#e2a990', '#cfd6dc'];
 
@@ -86,6 +96,28 @@ interface Instance {
   color?: THREE.Color;
 }
 
+
+/** Schild an der Schranke: Gebiet und nötiges Level. */
+function gateSignTexture(name: string, level: number): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#f4efe4';
+  ctx.fillRect(0, 0, 512, 256);
+  ctx.strokeStyle = '#c0392b';
+  ctx.lineWidth = 18;
+  ctx.strokeRect(9, 9, 494, 238);
+  ctx.fillStyle = '#2b2b2b';
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 54px sans-serif';
+  ctx.fillText(name, 256, 108);
+  ctx.font = '40px sans-serif';
+  ctx.fillText(`gesperrt bis Level ${level}`, 256, 180);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
 
 /** Gedrehtes Rechteck im Grundriss: Mitte, Richtung der Breite (ax, az), halbe Maße. */
 interface Rect {
@@ -335,7 +367,7 @@ export function createProps(
       b.y = terrain.sample(b.x, b.z);
     }
     const matrix = mat(b.x, b.y - 0.3, b.z, b.rot, sc, sy, sc);
-    const palette = town ? TOWNHOUSE_COLORS : WALL_COLORS;
+    const palette = town ? TOWNHOUSE_COLORS : steppeMask(b.x, b.z) > 0.5 ? STEPPE_WALLS : WALL_COLORS;
     instances[listIndex]![vi]!.push({ matrix, color: new THREE.Color(palette[Math.floor(rng() * palette.length)]!) });
 
     // Grundfläche (für die Grasmaske: kein Gras an den Wänden)
@@ -429,13 +461,30 @@ export function createProps(
   const bushes: Instance[] = [...gardenBushes];
   const rocks: Instance[] = [];
   const half = terrain.half;
-  for (let k = 0; k < 18000; k++) {
+  const redRocks: Instance[] = [];
+  // Gleiche Dichte wie früher auf 3 × 3 km, darum Versuche nach Fläche
+  const tries = Math.round(18000 * (terrain.size / 3000) ** 2);
+  for (let k = 0; k < tries; k++) {
     const x = (rng() * 2 - 1) * half * 0.98;
     const z = (rng() * 2 - 1) * half * 0.98;
     const y = terrain.sample(x, z);
     if (y < 3) continue;
     const slope = terrain.slope(x, z);
     const mask = roads.maskAt(terrain, x, z);
+    const steppe = steppeMask(x, z);
+    if (steppe > 0.5) {
+      // Glutsteppe: rote Felsbrocken, Büsche und vereinzelte Bäume
+      if (mask > 0.05) continue;
+      const r = rng();
+      if (slope > 0.3 || r < 0.05) {
+        if (rng() < 0.35 && occupied.tryTake(x, z, 1)) redRocks.push({ matrix: mat(x, y - 0.3, z, rng() * 6, 0.8 + rng() * 2.4, 0.6 + rng() * 1.2, 0.8 + rng() * 2) });
+      } else if (r < 0.12) {
+        if (occupied.tryTake(x, z, 1)) bushes.push({ matrix: mat(x, y - 0.1, z, rng() * 6, 0.5 + rng() * 0.6), color: new THREE.Color('#c8b878') });
+      } else if (r < 0.135 && occupied.tryTake(x, z, 2)) {
+        leafy.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.6 + rng() * 0.3, 0.5 + rng() * 0.3, 0.6 + rng() * 0.3) });
+      }
+      continue;
+    }
     if (slope > 0.45) {
       if (rng() < 0.15) rocks.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.8 + rng() * 1.6) });
       continue;
@@ -465,7 +514,12 @@ export function createProps(
   }
   // Laubbäume leicht unterschiedlich getönt
   const leafTints = ['#ffffff', '#e8f0c8', '#f6e7a8', '#d9eec0'];
-  leafy.forEach((t) => (t.color = new THREE.Color(leafTints[Math.floor(rng() * leafTints.length)]!)));
+  leafy.forEach((t) => (t.color ??= new THREE.Color(leafTints[Math.floor(rng() * leafTints.length)]!)));
+  // Bäume in der Steppe: staubig, olivgrün
+  for (const t of leafy) {
+    const p = new THREE.Vector3().setFromMatrixPosition(t.matrix);
+    if (steppeMask(p.x, p.z) > 0.5) t.color = new THREE.Color('#d8d090');
+  }
   // Bäume, Büsche und Felsen in Kacheln; Bäume in der Ferne als einfache Form
   const plantMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const sets: [string, THREE.BufferGeometry, THREE.BufferGeometry | null, Instance[], number, number, boolean][] = [
@@ -473,6 +527,7 @@ export function createProps(
     ['laubbaum', deciduous(), deciduousFar(), leafy, 220, 3000, true],
     ['busch', bush(), null, bushes, 600, 600, false],
     ['fels', rock(), null, rocks, 1400, 1400, true],
+    ['rotfels', redRock(), null, redRocks, 1400, 1400, true],
   ];
   for (const [name, near, far, items, nearDist, hideDist, shadow] of sets) {
     if (items.length === 0) continue;
@@ -481,27 +536,49 @@ export function createProps(
 
 
   // --- Schranken an gesperrten Wegenden ------------------------------------------------------
+  // Vor freischaltbaren Gebieten mit Schild; die Spielseite blendet sie beim Freischalten aus
+  const gates: Record<string, THREE.Object3D> = {};
   for (const n of roads.nodes.values()) {
     if (!n.gate) continue;
-    const e = roads.edge(n.edges[0]!);
+    const e = roads.edge(n.edges.find((id) => !roads.edge(id).region) ?? n.edges[0]!);
     const atEnd = e.to === n.id;
     const d = e.directionAt(atEnd ? e.length : 0);
+    const gate = new THREE.Group();
+    gate.name = `schranke-${n.id}`;
     const barrier = new THREE.Mesh(
-      painted(new THREE.BoxGeometry(7, 0.5, 0.3), '#d33'),
+      merged([
+        painted(new THREE.BoxGeometry(7, 0.5, 0.3), '#d33'),
+        ...[-2.4, -0.8, 0.8, 2.4].map((x) => painted(new THREE.BoxGeometry(0.8, 0.52, 0.32).translate(x, 0, 0), '#f4f4f4')),
+      ]),
       new THREE.MeshLambertMaterial({ vertexColors: true }),
     );
     barrier.position.set(n.x, n.y + 1.1, n.z);
     barrier.rotation.y = Math.atan2(d.dx, d.dz) + Math.PI / 2;
-    group.add(barrier);
+    gate.add(barrier);
     for (const side of [-3.2, 3.2]) {
       const post = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.12, 1.3, 6),
         new THREE.MeshLambertMaterial({ color: '#eee' }),
       );
       post.position.set(n.x - d.dz * side, n.y + 0.65, n.z + d.dx * side);
-      group.add(post);
+      gate.add(post);
     }
+    const region = REGIONS.find((r) => r.gateNode === n.id);
+    if (region) {
+      // Schild neben der Schranke, zur ankommenden Fahrerin gedreht
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshLambertMaterial({ map: gateSignTexture(region.name, region.unlockLevel) }));
+      const sx = n.x - d.dz * 4.4 - d.dx * 1.5;
+      const sz = n.z + d.dx * 4.4 - d.dz * 1.5;
+      sign.position.set(sx, n.y + 1.9, sz);
+      sign.rotation.y = Math.atan2(-d.dx, -d.dz);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6), new THREE.MeshLambertMaterial({ color: '#555' }));
+      pole.position.set(sx, n.y + 1.3, sz);
+      gate.add(sign, pole);
+    }
+    gates[n.id] = gate;
+    group.add(gate);
   }
+  group.userData.gates = gates;
 
   group.userData.counts = {
     houses: instances[0]!.flat().length + instances[2]!.flat().length,

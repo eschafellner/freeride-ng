@@ -170,7 +170,7 @@ describe('Segmente', () => {
 describe('Erfahrung und Erfolge', () => {
   const base: PlayerStats = {
     distance: 0, elevationGain: 0, timeSec: 0, collected: 0, collectibleTotal: 15,
-    viewpoints: 0, viewpointTotal: 4, explored: 0, segments: new Map(),
+    viewpoints: 0, viewpointTotal: 4, explored: 0, exploredKm2: 0, segments: new Map(),
   };
 
   it('Level-Kurve', () => {
@@ -181,9 +181,9 @@ describe('Erfahrung und Erfolge', () => {
   });
 
   it('XP aus Kilometern, Höhenmetern, Entdecktem und Erfolgen', () => {
-    const s = { ...base, distance: 10_000, elevationGain: 100, collected: 2, viewpoints: 1, explored: 0.1 };
-    expect(totalXp(s, new Set(), 0)).toBe(200 + 200 + 100 + 100 + 200);
-    expect(totalXp(s, new Set(['km-1']), 30)).toBe(800 + 25 + 30);
+    const s = { ...base, distance: 10_000, elevationGain: 100, collected: 2, viewpoints: 1, explored: 0.1, exploredKm2: 0.8 };
+    expect(totalXp(s, new Set(), 0)).toBe(200 + 200 + 100 + 100 + 216);
+    expect(totalXp(s, new Set(['km-1']), 30)).toBe(816 + 25 + 30);
   });
 
   it('Erfolge werden einmal freigeschaltet', () => {

@@ -19,8 +19,31 @@ export class FogGrid {
     this.cells = new Uint8Array(this.res * this.res);
     if (cells && cells.length === this.cells.length) {
       this.cells.set(cells);
-      for (const v of this.cells) if (v) this.revealedCount++;
+    } else if (cells) {
+      // Spielstand aus einer kleineren (oder größeren) Welt: mittig übertragen
+      const old = Math.round(Math.sqrt(cells.length));
+      const shift = (this.res - old) / 2;
+      if (old * old === cells.length && Number.isInteger(shift)) {
+        for (let j = 0; j < old; j++) {
+          for (let i = 0; i < old; i++) {
+            const ni = i + shift;
+            const nj = j + shift;
+            if (ni < 0 || nj < 0 || ni >= this.res || nj >= this.res) continue;
+            this.cells[nj * this.res + ni] = cells[j * old + i]!;
+          }
+        }
+      }
     }
+    for (const v of this.cells) if (v) this.revealedCount++;
+  }
+
+  /** Anzahl aufgedeckter Zellen, die `countable` erfüllen. */
+  countRevealed(countable: (i: number, j: number) => boolean): number {
+    let n = 0;
+    for (let j = 0; j < this.res; j++) {
+      for (let i = 0; i < this.res; i++) if (this.cells[j * this.res + i] && countable(i, j)) n++;
+    }
+    return n;
   }
 
   private cellIndex(x: number, z: number): [number, number] {

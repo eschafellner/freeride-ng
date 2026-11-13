@@ -6,6 +6,7 @@ const SURFACE: Record<Surface, { width: number; color: string }> = {
   asphalt: { width: 5.5, color: '#55585e' },
   town: { width: 6.5, color: '#8a837a' },
   gravel: { width: 4, color: '#b59f78' },
+  bridge: { width: 6, color: '#6a6c70' },
 };
 
 /** Abstand der Fahrbahn über dem eingeschnittenen Gelände. */
@@ -83,7 +84,7 @@ export function createRoadMesh(roads: RoadNetwork): THREE.Mesh {
     const s = SURFACE[e.surface];
     color.set(s.color);
     addRibbon(e, s.width, color, pos, col, idx);
-    if (e.surface === 'asphalt') addMarkings(e, s.width, pos, col, idx);
+    if (e.surface === 'asphalt' || e.surface === 'bridge') addMarkings(e, s.width, pos, col, idx);
   }
 
   // Kreuzungsplatten

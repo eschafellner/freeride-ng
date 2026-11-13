@@ -19,8 +19,8 @@ function smallWorld() {
 
 describe('Geländehöhe für Gras und Wasser', () => {
   const { terrain, roads } = smallWorld();
-  const { mesh, ground } = createTerrainMesh(terrain, roads, 1);
-  const pos = mesh.geometry.getAttribute('position');
+  const { tiles, ground } = createTerrainMesh(terrain, roads, 1);
+  const pos = tiles[0]!.geometry.getAttribute('position');
 
   it('stimmt an den Gitterpunkten', () => {
     for (let j = 0; j < terrain.res; j += 3) {

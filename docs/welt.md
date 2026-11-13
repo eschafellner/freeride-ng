@@ -22,7 +22,7 @@ Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitst
 | 2 | **Rebland** | Südwesten | sanfte Hügel, Weinberge, zwei Dörfer | 2–6 % | 30–250 m | ~15 km | MVP |
 | 3 | **Spiegelseen** | Nordwesten | Wald, drei Seen, Ufer-Rundweg | 0–3 % | 150–200 m | ~15 km | 6 |
 | 4 | **Hoher Kogel** | Inselmitte | einzelner Berg, Serpentinen, Gipfel mit Aussicht | 6–10 %, Rampen bis 12 % | bis 1.100 m | ~20 km | 6 |
-| 5 | **Glutsteppe** | Osten | trocken, rote Felsen, weite Sicht, Canyon | 0–4 %, lange Geraden | 100–300 m | ~20 km | 6 |
+| 5 | **Glutsteppe** | Osten | trocken, rote Felsen, weite Sicht, Canyon | 0–4 %, lange Geraden | 10–200 m | ~7,5 km (erste Ausbaustufe) | 6 ✅ |
 | 6 | **Nordkap** | Nordküste | Klippen, Leuchtturm, Küstenstraße | wellig 3–8 % | 20–180 m | ~12 km | 6 |
 
 **Brücken und Tore:** Die Hafenbrücke verbindet Lumen mit der Glutsteppe. Die Seebrücke
@@ -64,6 +64,24 @@ Nur **Lumen und Rebland**, etwa 3 × 3 km im Südwesten, mit 20–25 km Wegen:
 
 Am Rand des Ausschnitts sperren Tore wie eine gesperrte Brücke oder eine Baustelle
 die Wege in noch nicht gebaute Regionen.
+
+## Glutsteppe (Phase 6, ab Level 3)
+
+Umgesetzt im November 2026. Die Welt ist dafür von 3 × 3 km auf **4,8 × 4,8 km** gewachsen
+(gleiches 10-m-Raster, Lumen und Rebland sind unverändert). Die Insel hat jetzt auch eine
+West- und eine Ostküste.
+
+- **Lage:** östlich von Lumen, jenseits einer Meeresbucht. Die **Hafenbrücke** (rund 350 m,
+  Steinbrücke mit Pfeilern) ist der einzige Zugang. Bis Level 3 sperrt eine Schranke mit Schild.
+- **Gelände:** Hochfläche, die nach Norden auf 150–200 m ansteigt, trockener Ocker-Boden,
+  wenig Gras, rote Felsbrocken. Fünf **Tafelberge** mit roten Flanken, dazu die Schlucht
+  **Rotklamm**, die von der Bucht nach Norden führt (bis gut 40 m tief, flacher Grund).
+- **Wege (≈ 7,5 km):** Hafenbrücke, Steppenstraße, Klammzufahrt, Rotklamm (Schotter, im
+  Schluchtgrund), Hochweg, **Lange Gerade** (gut 1 km, fast schnurgerade), Sandweg,
+  Tafelweg, Küstenstraße, Kapweg, Windkamm, Kammabstieg und Plateauweg.
+- **Orte und Punkte:** Glutdorf (Dorf mit Läden), Brückenkopf, Ostkap, Tafelberg und
+  Glutplateau (Aussichtspunkte), Windkamm. 5 Kristalle.
+- Formen zum Nachbessern in `src/world/terrainGen.ts`: `BAY`, `CANYON`, `MESAS`, `steppeMask`.
 
 ## Datenformat (Vorschlag für Phase 3)
 

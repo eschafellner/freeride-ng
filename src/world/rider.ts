@@ -156,6 +156,8 @@ export class RiderOnNetwork {
     const all: Exit[] = [];
     for (const id of node.edges) {
       const edge = this.network.edge(id);
+      // Wege in gesperrten Gebieten sind zu (Schranke)
+      if (!this.network.isOpen(edge)) continue;
       // Eine Kante kann an beiden Enden am selben Knoten hängen (Schleife)
       const dirs: (1 | -1)[] = [];
       if (edge.from === node.id) dirs.push(1);

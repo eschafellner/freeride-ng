@@ -9,11 +9,32 @@ export interface LayoutNode {
   x: number;
   z: number;
   name?: string;
-  /** Wegende, das später freigeschaltet wird (gesperrte Brücke, Baustelle …). */
+  /** Schranke: Wegende bzw. Übergang, der später freigeschaltet wird (Brücke, Baustelle …). */
   gate?: boolean;
+  /** Gebiet, zu dem der Knoten gehört (gesperrt bis zur Freischaltung). */
+  region?: string;
 }
 
-export type Surface = 'asphalt' | 'town' | 'gravel';
+/**
+ * `bridge`: Brücke über Wasser. Das Höhenprofil läuft gerade von Ufer zu Ufer und
+ * das Gelände darunter wird nicht aufgeschüttet.
+ */
+export type Surface = 'asphalt' | 'town' | 'gravel' | 'bridge';
+
+/** Gebiet, das über das Level freigeschaltet wird. */
+export interface RegionDef {
+  id: string;
+  name: string;
+  unlockLevel: number;
+  /** Knoten mit der Schranke vor dem Gebiet. */
+  gateNode: string;
+  /** Text für Karte und Meldungen, z. B. „über die Hafenbrücke“. */
+  via: string;
+}
+
+export const REGIONS: RegionDef[] = [
+  { id: 'glutsteppe', name: 'Glutsteppe', unlockLevel: 3, gateNode: 'bruecke', via: 'über die Hafenbrücke' },
+];
 
 export interface LayoutEdge {
   id: string;
@@ -23,6 +44,8 @@ export interface LayoutEdge {
   via?: [number, number][];
   name?: string;
   surface?: Surface;
+  /** Gebiet, zu dem der Weg gehört (gesperrt bis zur Freischaltung). */
+  region?: string;
 }
 
 export interface RoadLayout {
@@ -54,6 +77,17 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'strand', x: -900, z: 860, name: 'Weststrand' },
     { id: 'aussicht', x: 850, z: -450, name: 'Aussicht Ostkamm' },
     { id: 'waldrand', x: -950, z: -1150, name: 'Waldrand' },
+    // Glutsteppe (hinter der Hafenbrücke, ab Level 3)
+    { id: 'brueckenkopf', x: 1650, z: 905, name: 'Brückenkopf', region: 'glutsteppe' },
+    { id: 'glutdorf', x: 1840, z: 770, name: 'Glutdorf', region: 'glutsteppe' },
+    { id: 'klamm-s', x: 1530, z: 420, name: 'Klammeingang', region: 'glutsteppe' },
+    { id: 'klamm-n', x: 1700, z: -820, name: 'Klammausgang', region: 'glutsteppe' },
+    { id: 'nordkreuz', x: 1960, z: -330, region: 'glutsteppe' },
+    { id: 'tafel', x: 2070, z: 150, name: 'Tafelberg', region: 'glutsteppe' },
+    { id: 'ostkap', x: 2120, z: 680, name: 'Ostkap', region: 'glutsteppe' },
+    { id: 'windkamm', x: 2110, z: -720, name: 'Windkamm', region: 'glutsteppe' },
+    { id: 'mittelkreuz', x: 1915, z: 160, region: 'glutsteppe' },
+    { id: 'plateau', x: 2040, z: -1210, name: 'Glutplateau', region: 'glutsteppe' },
   ],
   edges: [
     // Promenade
@@ -98,6 +132,25 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'aussicht-w', from: 'aussicht', to: 'hangdorf', via: [[550, -560], [200, -480]] },
     { id: 'waldweg', from: 'weinN', to: 'waldrand', via: [[-1250, -700], [-1150, -1000]], name: 'Waldweg' },
     { id: 'waldrand-o', from: 'waldrand', to: 'pass', via: [[-650, -1250], [-350, -1300]] },
+    // Glutsteppe
+    { id: 'hafenbruecke', from: 'bruecke', to: 'brueckenkopf', via: [[1480, 915]], name: 'Hafenbrücke', surface: 'bridge', region: 'glutsteppe' },
+    { id: 'steppenstrasse', from: 'brueckenkopf', to: 'glutdorf', via: [[1750, 860]], name: 'Steppenstraße', region: 'glutsteppe' },
+    { id: 'klammzufahrt', from: 'brueckenkopf', to: 'klamm-s', via: [[1610, 760], [1555, 590]], region: 'glutsteppe' },
+    {
+      id: 'rotklamm', from: 'klamm-s', to: 'klamm-n', name: 'Rotklamm', surface: 'gravel', region: 'glutsteppe',
+      via: [[1560, 200], [1500, -50], [1580, -300], [1640, -480], [1680, -640]],
+    },
+    { id: 'hochweg', from: 'klamm-n', to: 'nordkreuz', via: [[1830, -640], [1920, -480]], name: 'Hochweg', region: 'glutsteppe' },
+    { id: 'lange-gerade', from: 'glutdorf', to: 'mittelkreuz', via: [[1880, 440]], name: 'Lange Gerade', region: 'glutsteppe' },
+    { id: 'lange-gerade-n', from: 'mittelkreuz', to: 'nordkreuz', via: [[1935, -80]], name: 'Lange Gerade', region: 'glutsteppe' },
+    { id: 'sandweg', from: 'klamm-s', to: 'mittelkreuz', via: [[1680, 330], [1800, 220]], name: 'Sandweg', surface: 'gravel', region: 'glutsteppe' },
+    { id: 'tafelzufahrt', from: 'mittelkreuz', to: 'tafel', via: [[2000, 175]], region: 'glutsteppe' },
+    { id: 'plateauweg', from: 'windkamm', to: 'plateau', via: [[2150, -960]], name: 'Plateauweg', region: 'glutsteppe' },
+    { id: 'tafelweg', from: 'nordkreuz', to: 'tafel', via: [[2050, -120]], region: 'glutsteppe' },
+    { id: 'kuestenstrasse', from: 'tafel', to: 'ostkap', via: [[2120, 400]], name: 'Küstenstraße', region: 'glutsteppe' },
+    { id: 'kapweg', from: 'ostkap', to: 'glutdorf', via: [[1990, 760]], region: 'glutsteppe' },
+    { id: 'windweg', from: 'nordkreuz', to: 'windkamm', via: [[2080, -520]], name: 'Windkamm', region: 'glutsteppe' },
+    { id: 'kammabstieg', from: 'windkamm', to: 'klamm-n', via: [[1980, -860], [1830, -860]], region: 'glutsteppe' },
     // Richtung Kogel (gesperrt)
     { id: 'passstrasse', from: 'hangdorf', to: 'pass', via: [[-40, -700], [-260, -930], [60, -1150]], name: 'Passstraße' },
   ],

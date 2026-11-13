@@ -109,7 +109,7 @@ export function addMaskPolygons(u: TerrainUniforms, polygons: { x: number; z: nu
 }
 
 /** Breite der Straßenmaske je Belag in m (Fahrbahn plus Rand, Gehsteige in der Stadt). */
-const MASK_WIDTH = { asphalt: 7, town: 11.5, gravel: 5.5 } as const;
+const MASK_WIDTH = { asphalt: 7, town: 11.5, gravel: 5.5, bridge: 0 } as const;
 /** Gepflasterte Plätze: Knoten und Radius in m. */
 export const PLAZAS: { node: string; radius: number }[] = [
   { node: 'markt', radius: 24 },
@@ -139,6 +139,7 @@ export function createTerrainUniforms(terrain: Heightfield, roads: RoadNetwork, 
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   for (const e of roads.edges.values()) {
+    if (e.surface === 'bridge') continue;
     ctx.lineWidth = (MASK_WIDTH[e.surface] / terrain.size) * px;
     ctx.beginPath();
     for (let i = 0; i < e.count; i++) {

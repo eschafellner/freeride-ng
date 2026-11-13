@@ -89,10 +89,30 @@ describe('Wegenetz (MVP, Standard-Seed)', () => {
 
   it('das Gelände ist unter den Wegen auf Weghöhe eingeschnitten', () => {
     for (const e of roads.edges.values()) {
+      if (e.surface === 'bridge') continue;
       for (let i = 0; i < e.count; i += 10) {
         const diff = Math.abs(world.terrain.sample(e.xs[i]!, e.zs[i]!) - e.ys[i]!);
         expect(diff, `${e.id} @ ${e.ss[i]!.toFixed(0)} m`).toBeLessThan(1.5);
       }
+    }
+  });
+
+  it('die Hafenbrücke überspannt Wasser und liegt deutlich darüber', () => {
+    const b = roads.edge('hafenbruecke');
+    const mid = b.pointAt(b.length / 2);
+    expect(world.terrain.sample(mid.x, mid.z)).toBeLessThan(-3);
+    expect(mid.y).toBeGreaterThan(8);
+    for (let i = 0; i < b.count; i += 5) expect(Math.abs(b.gradeAt(b.ss[i]!))).toBeLessThan(0.06);
+  });
+
+  it('die Glutsteppe ist ein eigenes Gebiet hinter der Brücke', () => {
+    const steppe = [...roads.edges.values()].filter((e) => e.region === 'glutsteppe');
+    const len = steppe.reduce((s, e) => s + e.length, 0);
+    expect(len).toBeGreaterThan(7000);
+    // Nur die Brücke verbindet das Gebiet mit dem Rest
+    for (const e of roads.edges.values()) {
+      if (e.region) continue;
+      expect([e.from, e.to].some((id) => roads.node(id).region === 'glutsteppe'), e.id).toBe(false);
     }
   });
 
@@ -202,5 +222,26 @@ describe('RiderOnNetwork', () => {
     );
     expect(new RiderOnNetwork(net2, 'ab', 100, 1).grade).toBeCloseTo(0.05, 2);
     expect(new RiderOnNetwork(net2, 'ab', 100, -1).grade).toBeCloseTo(-0.05, 2);
+  });
+});
+
+describe('Gesperrte Gebiete', () => {
+  const world = createWorld();
+  const roads = world.roads;
+
+  it('an der Schranke kehrt der Fahrer um, solange das Gebiet gesperrt ist', () => {
+    roads.lockedRegions.add('glutsteppe');
+    const r = new RiderOnNetwork(roads, 'brueckenweg', 0, 1);
+    expect(r.upcomingExits().map((e) => e.edge.id)).toEqual(['brueckenweg']);
+    r.advance(roads.edge('brueckenweg').length + 5);
+    expect(r.edge.id).toBe('brueckenweg');
+    expect(r.dir).toBe(-1);
+    roads.lockedRegions.delete('glutsteppe');
+  });
+
+  it('nach der Freischaltung geht es über die Hafenbrücke', () => {
+    const r = new RiderOnNetwork(roads, 'brueckenweg', 0, 1);
+    r.advance(roads.edge('brueckenweg').length + 5);
+    expect(r.edge.id).toBe('hafenbruecke');
   });
 });

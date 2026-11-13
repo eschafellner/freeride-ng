@@ -13,7 +13,11 @@ export const XP = {
   perHm: 2,
   crystal: 50,
   viewpoint: 100,
-  perExploredPercent: 20,
+  /**
+   * Pro erkundetem km² Land. Früher 20 XP pro Prozent der 3-km-Welt (≈ 7,5 km² Land);
+   * seit die Insel wächst, zählt die Fläche, damit niemand XP verliert.
+   */
+  perExploredKm2: 270,
   segmentFinish: 25,
   segmentBest: 50,
 } as const;
@@ -26,8 +30,10 @@ export interface PlayerStats {
   collectibleTotal: number;
   viewpoints: number;
   viewpointTotal: number;
-  /** Erkundeter Anteil der Landfläche, 0…1. */
+  /** Erkundeter Anteil der erreichbaren Landfläche, 0…1. */
   explored: number;
+  /** Erkundete Landfläche in km². */
+  exploredKm2: number;
   segments: ReadonlyMap<string, SegmentRecord>;
 }
 
@@ -87,7 +93,7 @@ export function totalXp(stats: PlayerStats, unlocked: ReadonlySet<string>, bonus
     stats.elevationGain * XP.perHm +
     stats.collected * XP.crystal +
     stats.viewpoints * XP.viewpoint +
-    stats.explored * 100 * XP.perExploredPercent +
+    stats.exploredKm2 * XP.perExploredKm2 +
     bonusXp;
   for (const a of ACHIEVEMENTS) if (unlocked.has(a.id)) xp += a.xp;
   return Math.floor(xp);

@@ -11,6 +11,7 @@ const ROAD_STYLE = {
   town: { color: '#f2ede4', width: 7 },
   asphalt: { color: '#ffffff', width: 5 },
   gravel: { color: '#e9d7b0', width: 4 },
+  bridge: { color: '#ffffff', width: 5 },
 } as const;
 
 /**

@@ -9,8 +9,9 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
 - `npm run dev` – Dev-Server auf http://localhost:5173 (Web Serial braucht localhost oder HTTPS)
   - Spiel: `/`, mit `/?demo` startet direkt der Simulator (`&cadence=90`, `&skip=<Meter>`, `&map`,
     `&edge=<Kanten-ID>&s=<Meter>&dir=-1` für einen festen Startpunkt, `&quality=niedrig|mittel|hoch`,
-    `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera, `&hud=radcomputer`); Debug: `/debug.html`
-  - `?demo` lädt und speichert nie (schützt den echten Spielstand)
+    `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera, `&hud=radcomputer`, `&stats` schreibt Zeichenaufrufe
+    und die größten Meshes in die Konsole, `&locked` lässt gesperrte Gebiete zu); Debug: `/debug.html`
+  - `?demo` lädt und speichert nie (schützt den echten Spielstand) und öffnet alle Gebiete
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
 
@@ -38,8 +39,8 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `fixedStepLoop.ts`, `rideSession.ts` – 20 Hz Physik, 1 Hz Zielwatt ans Gerät
 - `src/world/` – Weltmodell, reines TS ohne Three.js (testbar)
   - `terrainGen.ts` – prozedurales Gelände (Seed), benannte Formbausteine zum Nachbessern
-  - `roadLayout.ts` – handgelegtes Wegenetz (Knoten, Kanten mit Stützpunkten)
-  - `roadNetwork.ts` – Spline, Höhenprofil (Knotenausgleich, max. 10 %), Einschneiden ins Gelände
+  - `roadLayout.ts` – handgelegtes Wegenetz (Knoten, Kanten mit Stützpunkten), Gebiete mit Freischalt-Level (`REGIONS`)
+  - `roadNetwork.ts` – Spline, Höhenprofil (Knotenausgleich, max. 10 %), Einschneiden ins Gelände, Brücken, gesperrte Gebiete
   - `rider.ts` – Fahrer folgt dem Netz, Abzweigungswahl über `ExitChooser`
   - `world.ts` – `createWorld(seed)`
   - `junction.ts` – Richtungswahl (`JunctionSelector`), Beschriftung der Abzweigungen
@@ -51,7 +52,7 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
 - `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD,
   Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`),
   Details (`props.ts` Platzierung/Vegetation, `houses.ts` Hausvarianten und Wege zur Tür, `shopFronts.ts` Ladenfronten, `details.ts` Wegrand/Weinberge,
-  `landmarks.ts` Kirche/Kapelle/Hafen), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
+  `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Brücken), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
   `grass.ts`, `water.ts`, `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen

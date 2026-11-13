@@ -14,6 +14,8 @@ export interface RoadNode {
   z: number;
   name?: string;
   gate: boolean;
+  /** Gebiet (gesperrt bis zur Freischaltung), sonst immer offen. */
+  region?: string;
   /** IDs der angeschlossenen Kanten. */
   edges: string[];
 }
@@ -30,6 +32,8 @@ export class RoadEdge {
     readonly ss: Float64Array,
     readonly surface: Surface,
     readonly name?: string,
+    /** Gebiet (gesperrt bis zur Freischaltung), sonst immer offen. */
+    readonly region?: string,
   ) {}
 
   get length(): number {
@@ -110,6 +114,11 @@ const DEFAULTS: Required<NetworkOptions> = {
   carveOuter: 32,
 };
 
+/** Fahrbahnhöhe an den Brückenenden mindestens (m über dem Meer). */
+export const BRIDGE_MIN_HEIGHT = 9;
+/** Zusätzliche Höhe in der Brückenmitte (m). */
+const BRIDGE_ARCH = 2;
+
 export class RoadNetwork {
   readonly nodes = new Map<string, RoadNode>();
   readonly edges = new Map<string, RoadEdge>();
@@ -118,6 +127,13 @@ export class RoadNetwork {
    * gleiches Raster wie die Höhenkarte. Für die Platzierung von Bäumen und Häusern.
    */
   roadMask: Float32Array = new Float32Array(0);
+  /** Gesperrte Gebiete: deren Wege sind für den Fahrer nicht befahrbar. */
+  readonly lockedRegions = new Set<string>();
+
+  /** Ist der Weg befahrbar (kein gesperrtes Gebiet)? */
+  isOpen(edge: RoadEdge): boolean {
+    return edge.region === undefined || !this.lockedRegions.has(edge.region);
+  }
 
   get totalLength(): number {
     let sum = 0;
@@ -285,8 +301,16 @@ export function buildRoadNetwork(
     if (net.nodes.has(n.id)) throw new Error(`Doppelter Knoten ${n.id}`);
     net.nodes.set(n.id, {
       id: n.id, x: n.x, z: n.z, y: nodeHeight(terrain, n, o.minHeight),
-      name: n.name, gate: n.gate ?? false, edges: [],
+      name: n.name, gate: n.gate ?? false, region: n.region, edges: [],
     });
+  }
+  // Brücken: Ufer etwas anheben, damit die Fahrbahn deutlich über dem Wasser liegt
+  for (const e of layout.edges) {
+    if (e.surface !== 'bridge') continue;
+    for (const id of [e.from, e.to]) {
+      const n = net.nodes.get(id);
+      if (n) n.y = Math.max(n.y, BRIDGE_MIN_HEIGHT);
+    }
   }
 
   const smoothRadius = Math.max(1, Math.round(o.smoothWindow / o.spacing / 2));
@@ -322,6 +346,18 @@ export function buildRoadNetwork(
     const a = net.node(e.from);
     const b = net.node(e.to);
     const n = xs.length;
+    if (e.surface === 'bridge') {
+      // Gerade von Ufer zu Ufer mit leichtem Bogen in der Mitte, kein Gelände darunter
+      const h = new Float64Array(n);
+      for (let i = 0; i < n; i++) {
+        const t = len > 0 ? ss[i]! / len : 0;
+        h[i] = a.y + (b.y - a.y) * t + BRIDGE_ARCH * Math.sin(Math.PI * t);
+      }
+      net.edges.set(e.id, new RoadEdge(e.id, e.from, e.to, xs, h, zs, ss, 'bridge', e.name, e.region));
+      a.edges.push(e.id);
+      b.edges.push(e.id);
+      continue;
+    }
     const h = smoothProfile(raw, smoothRadius);
     const d0 = a.y - h[0]!;
     const d1 = b.y - h[n - 1]!;
@@ -335,7 +371,7 @@ export function buildRoadNetwork(
     const smooth = smoothProfile(h, Math.max(1, smoothRadius >> 1));
     limitGrade(smooth, ss, o.maxGrade);
 
-    net.edges.set(e.id, new RoadEdge(e.id, e.from, e.to, xs, smooth, zs, ss, e.surface ?? 'asphalt', e.name));
+    net.edges.set(e.id, new RoadEdge(e.id, e.from, e.to, xs, smooth, zs, ss, e.surface ?? 'asphalt', e.name, e.region));
     a.edges.push(e.id);
     b.edges.push(e.id);
   }
@@ -376,6 +412,7 @@ function carveTerrain(net: RoadNetwork, terrain: Heightfield, inner: number, out
   };
 
   for (const e of net.edges.values()) {
+    if (e.surface === 'bridge') continue; // unter Brücken bleibt Wasser
     for (let i = 0; i < e.count; i++) stamp(e.xs[i]!, e.ys[i]!, e.zs[i]!);
   }
   for (const n of net.nodes.values()) stamp(n.x, n.y, n.z);

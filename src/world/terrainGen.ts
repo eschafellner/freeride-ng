@@ -11,9 +11,14 @@ import { lerp, mulberry32, smoothstep } from './random';
  * bewusst als benannte Bausteine geschrieben.
  */
 
-export const MVP_SIZE_M = 3000;
-/** 301 Punkte → 10 m Raster. */
-export const MVP_RES = 301;
+/**
+ * Kantenlänge der Welt in m. Lumen und Rebland liegen im Bereich ±1500 m, die
+ * Glutsteppe östlich davon. Das 10-m-Raster bleibt, damit sich bestehende
+ * Gebiete beim Vergrößern nicht verändern.
+ */
+export const MVP_SIZE_M = 4800;
+/** 481 Punkte → 10 m Raster. */
+export const MVP_RES = 481;
 export const SEA_LEVEL = 0;
 
 /** Rechteck der Stadtfläche Lumen (weich ausgeblendet). */
@@ -27,6 +32,70 @@ export interface TerrainOptions {
 
 const gauss = (x: number, z: number, cx: number, cz: number, r: number) =>
   Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * r * r));
+
+// --- Glutsteppe (Osten, hinter der Hafenbrücke) --------------------------------------
+
+/** Mittellinie der Bucht zwischen Lumen und Glutsteppe (Hafenbrücke führt darüber). */
+export const BAY = { x: 1480, halfWidth: 95, head: 640 };
+
+/** Verlauf der Schlucht „Rotklamm“ (von der Bucht nach Norden), gleiche Punkte wie der Weg. */
+export const CANYON: [number, number][] = [
+  [1480, 700], [1530, 420], [1560, 200], [1500, -50], [1580, -300], [1640, -480], [1680, -640], [1700, -820],
+];
+
+/** Tafelberge: Mitte, Radius der Fläche oben, Höhe über dem Umland. */
+export const MESAS = [
+  { x: 2190, z: 60, r: 80, h: 55 },
+  { x: 1760, z: -170, r: 60, h: 42 },
+  { x: 2230, z: -420, r: 55, h: 48 },
+  { x: 1980, z: 470, r: 45, h: 28 },
+  { x: 1860, z: -1030, r: 70, h: 60 },
+] as const;
+
+/** 1 in der Glutsteppe, 0 westlich der Bucht. */
+export function steppeMask(x: number, z: number): number {
+  // An der Bucht beginnt die Steppe am Ostufer, nördlich davon schon vor der Schlucht
+  const edge = lerp(1530, 1390, smoothstep(700, 450, z));
+  return smoothstep(edge - 110, edge + 110, x) * (1 - smoothstep(-1300, -1700, z));
+}
+
+/** Abstand eines Punktes zu einem Linienzug. */
+export function distanceToPolyline(x: number, z: number, line: readonly (readonly [number, number])[]): number {
+  let best = Infinity;
+  for (let k = 0; k + 1 < line.length; k++) {
+    const [ax, az] = line[k]!;
+    const [bx, bz] = line[k + 1]!;
+    const dx = bx - ax;
+    const dz = bz - az;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t));
+  }
+  return best;
+}
+
+/** Wasser in der Bucht (0 … 1). */
+function bayMask(x: number, z: number, wobble: number): number {
+  const across = 1 - smoothstep(BAY.halfWidth - 45, BAY.halfWidth + 55, Math.abs(x - BAY.x - wobble));
+  return across * smoothstep(BAY.head - 60, BAY.head + 60, z);
+}
+
+/** Höhe der Glutsteppe: Hochfläche nach Norden ansteigend, Tafelberge, Schlucht. */
+function steppeHeight(x: number, z: number, noise: (x: number, z: number) => number): number {
+  let h = 12 + 150 * smoothstep(950, -1300, z) ** 1.2;
+  // flache Wellen und einzelne Kuppen
+  h += 14 * noise(x / 700, z / 700) + 5 * noise(x / 160, z / 160);
+  // Tafelberge mit steilen Flanken und flacher Kuppe
+  for (const m of MESAS) {
+    const d = Math.hypot(x - m.x, z - m.z) + 12 * noise(x / 60, z / 60);
+    h += m.h * (1 - smoothstep(m.r, m.r + 35, d));
+  }
+  // Rotklamm: flacher Grund, steile Wände
+  const dc = distanceToPolyline(x, z, CANYON);
+  const depth = 42 * smoothstep(650, 350, z) ** 0.5;
+  const carved = h - depth * (1 - smoothstep(28, 70, dc));
+  // Der Grund bleibt über dem Meer (sonst stünde Wasser in der Schlucht)
+  return Math.max(carved, Math.min(h, 5));
+}
 
 export function townMask(x: number, z: number): number {
   const { x0, x1, z0, z1, fade } = TOWN;
@@ -82,8 +151,16 @@ export function generateTerrain({ seed, size = MVP_SIZE_M, res = MVP_RES }: Terr
       const town = 4 + Math.max(0, 980 - z) * 0.022;
       h = lerp(h, town, townMask(x, z));
 
-      // Meer
-      h = lerp(h, SEA_LEVEL - 10, smoothstep(40, -80, d));
+      // Glutsteppe im Osten
+      const steppe = steppeMask(x, z);
+      if (steppe > 0) h = lerp(h, steppeHeight(x, z, detailNoise), steppe);
+
+      // Meer: Südküste, dazu West- und Ostküste der Insel und die Bucht vor der Glutsteppe
+      const westD = x - (-1760 + 60 * coastNoise(0.81, z / 500));
+      const eastD = 2260 + 70 * coastNoise(0.23, z / 450) - x;
+      const coast = Math.min(d, westD, eastD);
+      h = lerp(h, SEA_LEVEL - 10, smoothstep(40, -80, coast));
+      h = lerp(h, SEA_LEVEL - 9, bayMask(x, z, 18 * coastNoise(0.5, z / 300)));
 
       hf.set(i, j, h);
     }

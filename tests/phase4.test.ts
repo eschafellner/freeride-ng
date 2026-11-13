@@ -110,9 +110,9 @@ describe('POIs', () => {
     }
   });
 
-  it('IDs sind eindeutig, 15 Sammelobjekte', () => {
+  it('IDs sind eindeutig, 20 Sammelobjekte (15 + 5 in der Glutsteppe)', () => {
     expect(new Set(pois.map((p) => p.id)).size).toBe(pois.length);
-    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(15);
+    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(20);
   });
 
   it('jedes Sammelobjekt ist mit dem Fahrer erreichbar', () => {
@@ -138,7 +138,7 @@ describe('GameProgress', () => {
   it('sammelt einmal ein', () => {
     const g = new GameProgress(pois);
     const ev = g.update(k01, 0);
-    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 15 })]);
+    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 20 })]);
     expect(g.update(k01, 1)).toEqual([]);
   });
 
@@ -223,5 +223,24 @@ describe('Spielstand', () => {
     expect(st.distance).toBe(1000);
     expect(st.elevationGain).toBe(50);
     expect(st.gearIndex).toBe(e.gears.ratios.length - 1);
+  });
+});
+
+describe('Erkundungsnebel aus einer kleineren Welt', () => {
+  it('wird mittig in die größere Welt übertragen', () => {
+    const small = new FogGrid(3000, 20);
+    small.reveal(500, 900, 60);
+    small.reveal(-1400, -1400, 30);
+    const big = new FogGrid(4800, 20, small.cells);
+    expect(big.res).toBe(240);
+    expect(big.isRevealed(500, 900)).toBe(true);
+    expect(big.isRevealed(-1400, -1400)).toBe(true);
+    expect(big.isRevealed(2000, 0)).toBe(false);
+    expect(big.countRevealed(() => true)).toBe(small.countRevealed(() => true));
+  });
+
+  it('ignoriert Daten, die zu keinem Raster passen', () => {
+    const big = new FogGrid(4800, 20, new Uint8Array(1000).fill(1));
+    expect(big.countRevealed(() => true)).toBe(0);
   });
 });

@@ -37,6 +37,8 @@ import { createScene, driftClouds, followSun } from './scene';
 import { addMaskLines, addMaskPolygons, createTerrainUniforms, PLAZAS } from './shaderChunks';
 import { deleteSave, loadSave, writeSave } from './storage';
 import { createTerrainMesh } from './terrainMesh';
+import { createBridges } from './bridges';
+import { REGIONS } from '../world/roadLayout';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -85,6 +87,13 @@ async function main() {
   const props = createProps(world.terrain, world.roads, world.seed, landmarks.reserved);
   props.name = 'gebaeude';
   scene.add(props);
+  scene.add(createBridges(world.roads, world.terrain));
+  // Gebiete sperren, bis das Level reicht (siehe updateRegions). Im Demo-Modus ist alles
+  // offen, außer mit &locked (zum Prüfen der Schranken).
+  const gates = props.userData.gates as Record<string, THREE.Object3D>;
+  const lockAll = !demo || params.has('locked');
+  if (lockAll) for (const r of REGIONS) world.roads.lockedRegions.add(r.id);
+  for (const r of REGIONS) gates[r.gateNode]!.visible = lockAll;
   // Wege zu den Haustüren: kein Gras auf den Trittsteinen
   addMaskLines(terrainUniforms, props.userData.pathLines as { x: number; z: number }[][], 1.6);
   // Hausgrundrisse: kein Gras an den Wänden und vor den Fenstern
@@ -138,16 +147,36 @@ async function main() {
   const segmentHud = new SegmentHud($('segment'));
   const input = new Input();
 
-  // Landzellen für den Erkundungsanteil (Meer zählt nicht), einmal vorberechnet
+  // Landzellen (Meer zählt nicht) und davon die erreichbaren: in Sichtweite eines Weges.
+  // Der Anteil „Erkundet“ bezieht sich auf die erreichbaren, damit 100 % möglich bleiben.
   const landMask = new Uint8Array(fog.res * fog.res);
-  for (let j = 0; j < fog.res; j++) {
-    for (let i = 0; i < fog.res; i++) {
-      const half = world.terrain.half;
-      landMask[j * fog.res + i] =
-        world.terrain.sample(-half + (i + 0.5) * fog.cellSize, -half + (j + 0.5) * fog.cellSize) > 0 ? 1 : 0;
+  const reachMask = new Uint8Array(fog.res * fog.res);
+  {
+    const half = world.terrain.half;
+    for (let j = 0; j < fog.res; j++) {
+      for (let i = 0; i < fog.res; i++) {
+        landMask[j * fog.res + i] =
+          world.terrain.sample(-half + (i + 0.5) * fog.cellSize, -half + (j + 0.5) * fog.cellSize) > 0 ? 1 : 0;
+      }
+    }
+    const reach = Math.ceil(REVEAL_RADIUS / fog.cellSize);
+    for (const e of world.roads.edges.values()) {
+      for (let s = 0; s <= e.length; s += fog.cellSize) {
+        const p = e.pointAt(s);
+        const ci = Math.floor((p.x + half) / fog.cellSize);
+        const cj = Math.floor((p.z + half) / fog.cellSize);
+        for (let j = cj - reach; j <= cj + reach; j++) {
+          for (let i = ci - reach; i <= ci + reach; i++) {
+            if (i < 0 || j < 0 || i >= fog.res || j >= fog.res) continue;
+            if (Math.hypot(i - ci, j - cj) <= reach) reachMask[j * fog.res + i] = landMask[j * fog.res + i]!;
+          }
+        }
+      }
     }
   }
-  const landCells = (i: number, j: number) => landMask[j * fog.res + i] === 1;
+  const landCells = (i: number, j: number) => reachMask[j * fog.res + i] === 1;
+  const anyLand = (i: number, j: number) => landMask[j * fog.res + i] === 1;
+  const cellKm2 = (fog.cellSize * fog.cellSize) / 1e6;
 
   // --- Fahrerposition -----------------------------------------------------------
 
@@ -405,6 +434,7 @@ async function main() {
       viewpoints: progress.viewpointCount,
       viewpointTotal: progress.viewpointTotal,
       explored: fog.fraction(landCells),
+      exploredKm2: fog.countRevealed(anyLand) * cellKm2,
       segments: tracker.records,
     };
   }
@@ -436,9 +466,20 @@ async function main() {
       saveNow();
     }
     shownLevel = lvl.level;
+    updateRegions(lvl.level, silent);
     hud.level.textContent = String(lvl.level);
     hud.xpbar.style.width = `${((lvl.into / lvl.needed) * 100).toFixed(1)}%`;
     hud.xp.textContent = `${lvl.into} / ${lvl.needed} XP`;
+  }
+
+  /** Schaltet Gebiete frei, sobald das Level reicht: Schranke weg, Wege befahrbar. */
+  function updateRegions(level: number, silent: boolean) {
+    for (const r of REGIONS) {
+      if (!world.roads.lockedRegions.has(r.id) || level < r.unlockLevel) continue;
+      world.roads.lockedRegions.delete(r.id);
+      gates[r.gateNode]!.visible = false;
+      if (!silent) toasts.show(`Neues Gebiet: ${r.name}`, `Jetzt offen ${r.via}`, 'level');
+    }
   }
 
   function onSegment(ev: SegmentEvent) {
@@ -609,6 +650,7 @@ async function main() {
       ['Höhenmeter', `${Math.round(s.elevationGain)} m`],
       ['Fahrzeit', fmtTime(s.timeSec)],
       ['Level', `${levelFor(currentXp()).level} (${currentXp()} XP)`],
+      ...REGIONS.map((r) => [r.name, world.roads.lockedRegions.has(r.id) ? `gesperrt bis Level ${r.unlockLevel}` : 'offen']),
     ].map(([k, v]) => `<span class="label">${k}</span><span>${v}</span>`).join('');
     $('bigmap-segments').innerHTML = segments.map((seg) => {
       const r = tracker.record(seg.id);

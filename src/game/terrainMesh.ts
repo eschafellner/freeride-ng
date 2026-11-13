@@ -3,7 +3,7 @@ import type { Heightfield } from '../world/heightfield';
 import { fieldAt, REBLAND } from '../world/placement';
 import { mulberry32 } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
-import { townMask } from '../world/terrainGen';
+import { steppeMask, townMask } from '../world/terrainGen';
 import { NOISE_GLSL } from './shaderChunks';
 
 const COLORS = {
@@ -17,7 +17,19 @@ const COLORS = {
   verge: new THREE.Color('#7f9e4a'),
   seabed: new THREE.Color('#c8b98a'),
   vineyardSoil: new THREE.Color('#a08a5a'),
+  // Glutsteppe
+  ochre: new THREE.Color('#c9a26a'),
+  dust: new THREE.Color('#b8865a'),
+  dryGrass: new THREE.Color('#a8a05a'),
+  redRock: new THREE.Color('#a8553a'),
+  redRockDark: new THREE.Color('#8a4330'),
+  dryVerge: new THREE.Color('#a8955e'),
 };
+
+/** Zellen pro Kachelkante (≈ 600 m bei 10-m-Raster). */
+const TILE_CELLS = 60;
+/** Zellen, deren Ecken alle tiefer liegen, werden durch eine flache Platte ersetzt. */
+const DEEP = -8.5;
 
 /** Feldarten: reifes Getreide, junges Grün, Acker, Raps. */
 const FIELD_COLORS = ['#d8c26a', '#a9cf5c', '#9a7a52', '#e6d84a'].map((c) => new THREE.Color(c));
@@ -37,7 +49,7 @@ export interface GroundData {
  */
 export function createTerrainMesh(
   terrain: Heightfield, roads: RoadNetwork, seed: number,
-): { mesh: THREE.Mesh; ground: GroundData } {
+): { mesh: THREE.Group; tiles: THREE.Mesh[]; ground: GroundData } {
   const res = terrain.res;
   const cells = res - 1;
   const triCount = cells * cells * 2;
@@ -74,6 +86,25 @@ export function createTerrainMesh(
     } else if (h < 2.5) {
       tmp.copy(COLORS.sand);
       grass = 0;
+    }
+    // Glutsteppe: trockener Boden, rote Felswände, wenig Gras
+    else if (steppeMask(cx, cz) > 0.5) {
+      if (mask > 0.15) {
+        tmp.copy(COLORS.dryVerge).lerp(COLORS.dust, r * 0.4);
+        grass = 0.15;
+      } else if (Math.abs(n.y) < 0.9 && h < 9) {
+        // Steilufer an der Bucht: sandig statt Fels
+        tmp.copy(COLORS.sand).lerp(COLORS.dust, 0.3 + r * 0.3);
+        grass = 0;
+      } else if (Math.abs(n.y) < 0.9) {
+        // Schichten im Fels: Farbe wechselt mit der Höhe
+        tmp.copy(Math.floor(h / 6) % 2 ? COLORS.redRock : COLORS.redRockDark).lerp(COLORS.dust, r * 0.2);
+        grass = 0;
+      } else {
+        const patch = Math.sin(cx / 37) * Math.cos(cz / 53) + r * 0.6;
+        tmp.copy(patch > 0.5 ? COLORS.dryGrass : COLORS.ochre).lerp(COLORS.dust, r * 0.35);
+        grass = patch > 0.5 ? 0.35 : 0.08;
+      }
     }
     // Böschungen an Wegen: begrünt statt Fels
     else if (mask > 0.15) tmp.copy(COLORS.verge).lerp(COLORS.grassB, steep ? 0.2 : 0.5 + r * 0.3);
@@ -144,15 +175,54 @@ export function createTerrainMesh(
     }
   }
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
+  // In Kacheln aufteilen (Blickfeld-Culling); Zellen tief unter Wasser weglassen,
+  // dort liegt eine flache Platte als Meeresgrund
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   addGroundDetail(mat);
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.receiveShadow = true;
-  return { mesh, ground: { cells, rgba: ground } };
+  const group = new THREE.Group();
+  const tiles: THREE.Mesh[] = [];
+  const tileCells = Math.max(1, Math.ceil(cells / Math.max(1, Math.round(cells / TILE_CELLS))));
+  const deep = (i: number, j: number) =>
+    terrain.get(i, j) < DEEP && terrain.get(i + 1, j) < DEEP && terrain.get(i, j + 1) < DEEP && terrain.get(i + 1, j + 1) < DEEP;
+  let skipped = 0;
+  for (let tj = 0; tj < cells; tj += tileCells) {
+    for (let ti = 0; ti < cells; ti += tileCells) {
+      const keep: number[] = [];
+      for (let j = tj; j < Math.min(cells, tj + tileCells); j++) {
+        for (let i = ti; i < Math.min(cells, ti + tileCells); i++) {
+          if (deep(i, j)) skipped++;
+          else keep.push(j * cells + i);
+        }
+      }
+      if (keep.length === 0) continue;
+      // Je Zelle 2 Dreiecke à 3 Ecken à 3 Werte = 18 Floats, in Erzeugungsreihenfolge
+      const pos = new Float32Array(keep.length * 18);
+      const col = new Float32Array(keep.length * 18);
+      keep.forEach((c, k) => {
+        pos.set(positions.subarray(c * 18, c * 18 + 18), k * 18);
+        col.set(colors.subarray(c * 18, c * 18 + 18), k * 18);
+      });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+      geo.computeVertexNormals();
+      geo.computeBoundingSphere();
+      const tile = new THREE.Mesh(geo, mat);
+      tile.name = `gelaende-${ti / tileCells}-${tj / tileCells}`;
+      tile.receiveShadow = true;
+      tiles.push(tile);
+      group.add(tile);
+    }
+  }
+  if (skipped > 0) {
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(terrain.size, terrain.size).rotateX(-Math.PI / 2).translate(0, DEEP - 1.2, 0),
+      new THREE.MeshLambertMaterial({ color: COLORS.seabed }),
+    );
+    floor.name = 'meeresgrund';
+    group.add(floor);
+  }
+  return { mesh: group, tiles, ground: { cells, rgba: ground } };
 }
 
 /**

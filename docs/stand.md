@@ -23,9 +23,11 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Phase 5b: Grafik (Qualitätsstufen, Licht, Gras, Wasser) | ✅ |
 | Ortskerne mit Läden, Kamera, Fahrradcomputer-Anzeige | ✅ |
 | Häuser: Oberflächen-Shader, echte Dächer, Häuserzeilen im Ortskern | ✅ |
-| Phase 6: Welt ausbauen | ⏭ als Nächstes |
+| Phase 6, Schritt 1: Performance (Detailstufen, Kacheln) | ✅ |
+| Phase 6, Schritt 2: Glutsteppe hinter der Hafenbrücke (ab Level 3) | ✅ |
+| Phase 6, Schritt 3: Tag-Nacht-Wechsel | ⏭ erst gemeinsam besprechen |
 
-Qualität: 182 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 194 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -38,6 +40,8 @@ npm test             # Tests
 - Spiel: `/` · Debug-Seite für das Gerät: `/debug.html`
 - Schnelltest ohne Menü: `/?demo` (speichert nie), z.B. `/?demo&edge=weinberg-s&s=120`
 - Grafik: Taste `G` oder per `&quality=niedrig|mittel|hoch`, feste Kamera mit `&cam=x,y,z,zielX,zielY,zielZ`
+- Glutsteppe: `/?demo&edge=lange-gerade&s=150` (im Demo-Modus sind alle Gebiete offen, `&locked` zeigt die Schranke)
+- Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
 
 ## Steuerung
@@ -88,6 +92,11 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Dorfstraße liegt im Einschnitt, die Weinberge sieht man von dort kaum
 - Namen der Regionen sind noch Arbeitstitel
 
+**Glutsteppe selbst prüfen:**
+- Ab Level 3 öffnet sich die Schranke an der Hafenbrücke (Meldung „Neues Gebiet“). Level und Status stehen auf der Karte (`M`)
+- Gefallen Bucht, Brücke, Rotklamm und Tafelberge? Formen in `terrainGen.ts` (`BAY`, `CANYON`, `MESAS`)
+- Läuft es flüssig? Neue Regler im Grafikmenü: Detailweite, Hausoberflächen
+
 **Grafik selbst prüfen:**
 - Häuser: Gefallen Putz, Ziegel, Moos und Fachwerk? Stärken stehen im Shader in `houses.ts`
   (`plaster`, `roofTiles`, `timber`); Häufigkeiten (Fachwerk, Efeu, Balkon …) in `houseVariant`/`townhouseVariant`
@@ -99,14 +108,15 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Segmente fahren und eine Bestzeit setzen, dann den Ghost beim zweiten Versuch ansehen
 - Passen XP-Werte und Levelkurve zum Gefühl? (Werte in `XP` und `xpForNextLevel`)
 
-## Nächster Schritt: Phase 6
+## Nächster Schritt: Phase 6, Schritt 3 (Tag-Nacht-Wechsel)
 
-Startprompt für die neue Session:
+Vorher gemeinsam besprechen, wie der Tag-Nacht-Wechsel aussehen soll (Wunsch aus der Session
+vom 13.11.2026). Startprompt:
 
 ```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Plane den Ausbau der Welt: neue Gebiete
-hinter den Schranken (Hafenbrücke, Passweg) als Freischaltung über Level, dazu
-freischaltbare Trikotfarben. Danach Performance (Instancing, LOD) und Tag-Nacht-Wechsel.
+Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Wir wollen den Tag-Nacht-Wechsel umsetzen.
+Mach mir zuerst Vorschläge zur Umsetzung (Zeitablauf, Licht, Himmel, Lampen und Fenster,
+Einfluss aufs Spiel, Grafikstufen) und lass uns das gemeinsam diskutieren, bevor du baust.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

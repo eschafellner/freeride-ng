@@ -260,6 +260,23 @@ Offen aus Phase 5:
 - Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
 - Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
 
+**13.11.2026, Phase 6 begonnen: Performance und Glutsteppe:**
+- Performance (`src/game/lod.ts`): Häuser, Bäume und Reben haben ein einfaches Fernmodell. Je Modell gibt es ein Nah- und ein Fernmesh, deren Instanzen beim Fahren neu verteilt werden (`DynamicLod`). Kleinteile (Trittsteine, Kiesel, Zäune, Leitpfosten, Laternen) liegen in Kacheln mit eigener Hüllkugel und werden ab einer Entfernung ausgeblendet (`LodInstances`). Wolken sind ein Mesh, das Gelände ist in Kacheln geteilt, tiefer Meeresgrund ist eine flache Platte
+- Messung (headless, gleiche Kamerapositionen): vorher 4,2 Mio. Dreiecke und 180 Zeichenaufrufe pro Bild in der Marktstraße, jetzt 0,9–1,5 Mio. Dreiecke und 110–190 Aufrufe, obwohl die Welt 2,5-mal so groß ist
+- Grafikmenü: neue Regler **Detailweite** (Faktor für die LOD-Entfernungen) und **Hausoberflächen** (auf „Niedrig“ aus). Die Testanzeige (`T`) zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt eine Aufschlüsselung in die Konsole
+- Welt von 3 auf 4,8 km Kantenlänge vergrößert (gleiches Raster, Lumen/Rebland unverändert), mit West- und Ostküste
+- **Glutsteppe** hinter der Hafenbrücke, freigeschaltet ab **Level 3** (`REGIONS` in `roadLayout.ts`): Bucht, Steinbrücke mit Pfeilern und Laternen (`bridges.ts`), Schlucht Rotklamm, Tafelberge, rote Felsen, Glutdorf, rund 7,5 km Wege, 5 Kristalle, 2 Aussichtspunkte. Details in `docs/welt.md`
+- Brücken: Belag `bridge` im Wegenetz. Das Profil läuft gerade (mit leichtem Bogen) von Ufer zu Ufer, das Gelände darunter wird nicht aufgeschüttet
+- Gesperrte Gebiete: Der Fahrer kehrt an der Schranke um. Beim Erreichen des Levels verschwindet die Schranke, es gibt eine Meldung, und die große Karte zeigt den Status
+- Spielstand: Der Erkundungsnebel aus der kleineren Welt wird mittig übernommen. Erkundungs-XP zählen jetzt pro km² (270 XP/km², vorher 20 XP pro Prozent der alten Welt, also gleich viel). „Erkundet“ bezieht sich auf das Land in Sichtweite der Wege, damit 100 % erreichbar bleiben
+
+Offen aus Phase 6 (bisher):
+
+- [ ] Glutsteppe am echten Rad fahren: passen Steigungen und Länge? Rotklamm-Anstieg ggf. als Bergwertung
+- [ ] Bildrate im echten Browser auf allen Stufen messen
+- [ ] Tag-Nacht-Wechsel: Umsetzung gemeinsam besprechen (Schritt 3)
+- [ ] Weitere Gebiete: Passweg zum Hohen Kogel, Spiegelseen, Nordkap
+
 **13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**
 - Oberflächen im Shader statt Bilddateien (`houseMaterial()` in `houses.ts`, Attribut `surf`): Putz mit Struktur und Flecken, Regenspuren unter der Traufe, Schmutz und Spritzwasser am Sockel, an manchen Häusern abgeplatzter Putz mit Ziegeln darunter. Dazu Dachziegel in versetzten Reihen mit Moos auf der Nordseite, Steinquader (Sockel, Fensterbänke, Eckquader), Holzbretter (Türen, Läden, Scheunen), Fachwerk mit Streben und Glas mit Himmelsspiegelung. Feine Muster blenden in der Ferne aus (gegen Flimmern)
 - Echte Sattel- und Walmdächer mit Überstand, Firstziegeln, Traufbrett, Regenrinne und Fallrohr. Giebel zur Straße oder Traufe zur Straße, Gauben, Schornsteine mit Abdeckung

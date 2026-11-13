@@ -20,7 +20,7 @@ const pick = <T>(rng: Rng, list: readonly T[]): T => list[Math.floor(rng() * lis
 
 /** Oberflächenarten für den Shader (Attribut `surf.x`). */
 export const SURF = { detail: 0, plaster: 1, roof: 2, stone: 3, timber: 4, wood: 5, glass: 6, paving: 7 } as const;
-type Surf = (typeof SURF)[keyof typeof SURF];
+export type Surf = (typeof SURF)[keyof typeof SURF];
 
 /**
  * Färbt eine Geometrie und setzt Tönung und Oberfläche.
