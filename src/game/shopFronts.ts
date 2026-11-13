@@ -50,6 +50,8 @@ export interface ShopPlacement {
   door: { x: number; z: number };
   /** Platz vor der Front bis zum Gehsteig/Fahrbahnrand in m. */
   depth: number;
+  /** Halbe nutzbare Frontbreite in m (ohne Maßstab); Standard nach Bauart. */
+  halfWidth?: number;
 }
 
 // --- Bausteine ----------------------------------------------------------------------------
@@ -356,7 +358,7 @@ export function createShopFronts(shops: ShopPlacement[], terrain: Heightfield, r
     // Außenbereich zwischen Front und Gehsteig, Tür und Weg bleiben frei
     const depth = s.depth;
     const doorX = s.door.x * s.sc;
-    const halfW = (s.window ? 3.6 : 5.5) * s.sc;
+    const halfW = (s.halfWidth ?? (s.window ? 3.6 : 5.5)) * s.sc;
     const slots: number[] = [];
     for (let x = -halfW + 0.9; x <= halfW - 0.9; x += 1.9) if (Math.abs(x - doorX) > 1.4) slots.push(x);
     const rowZ = frontWorld + Math.min(depth - 0.6, 1.6);

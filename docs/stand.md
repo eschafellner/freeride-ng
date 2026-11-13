@@ -1,4 +1,4 @@
-# Stand: Freeride NG (Ende 12.11.2026)
+# Stand: Freeride NG (Ende 13.11.2026)
 
 Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 „Stand & offene Punkte“), die Welt in `docs/welt.md`, Arbeitsregeln in `CLAUDE.md`.
@@ -22,9 +22,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Phase 5: XP, Level, Erfolge, Segmente, Ghost | ✅ (ohne Räder/Outfits/Gebiete) |
 | Phase 5b: Grafik (Qualitätsstufen, Licht, Gras, Wasser) | ✅ |
 | Ortskerne mit Läden, Kamera, Fahrradcomputer-Anzeige | ✅ |
+| Häuser: Oberflächen-Shader, echte Dächer, Häuserzeilen im Ortskern | ✅ |
 | Phase 6: Welt ausbauen | ⏭ als Nächstes |
 
-Qualität: 177 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 182 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -88,6 +89,9 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Namen der Regionen sind noch Arbeitstitel
 
 **Grafik selbst prüfen:**
+- Häuser: Gefallen Putz, Ziegel, Moos und Fachwerk? Stärken stehen im Shader in `houses.ts`
+  (`plaster`, `roofTiles`, `timber`); Häufigkeiten (Fachwerk, Efeu, Balkon …) in `houseVariant`/`townhouseVariant`
+- Wirkt der Ortskern mit den geschlossenen Zeilen zu eng? Rücksprung in `props.ts` (`edgeOff + 0.9`)
 - Läuft „Hoch“ flüssig? Sonst „Mittel“ (Standard) oder „Niedrig“ im Menü wählen
 - Gefallen Gras, Wasser und Licht? Farben stehen in `scene.ts` (`SKY`), `water.ts` und `grass.ts`
 

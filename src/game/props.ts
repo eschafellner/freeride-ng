@@ -2,12 +2,16 @@ import * as THREE from 'three';
 import type { Heightfield } from '../world/heightfield';
 import { distanceToRoad, REBLAND } from '../world/placement';
 import { mulberry32 } from '../world/random';
-import type { RoadNetwork } from '../world/roadNetwork';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
 import { townMask } from '../world/terrainGen';
 import { merged, painted } from './details';
-import { createFrontPaths, createHouseVariants, tintedMaterial, type FrontPath } from './houses';
+
+const pick = <T>(rng: () => number, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
+import { createFrontPaths, createHouseVariants, houseMaterial, part, SURF, TOWNHOUSE_DEPTH, TOWNHOUSE_WIDTHS, type FrontPath } from './houses';
+import { PLAZAS } from './shaderChunks';
 import { createShopFronts, type ShopPlacement } from './shopFronts';
-import { assignShops, type ShopSlot } from '../world/shops';
+import { assignShops, hasTerrace, type ShopSlot } from '../world/shops';
 
 // --- Modelle (eigene Low-Poly-Entwürfe) ---------------------------------------------
 
@@ -38,19 +42,8 @@ function rock(): THREE.BufferGeometry {
   return painted(new THREE.DodecahedronGeometry(1, 0).scale(1.4, 0.8, 1.1).translate(0, 0.3, 0), '#9a958c');
 }
 
-/** Scheune: breit, niedrig, Holz, großes Tor. */
-function barn(): THREE.BufferGeometry {
-  const w = 12, d = 8, h = 4.5;
-  return merged([
-    painted(new THREE.BoxGeometry(w, h, d).translate(0, h / 2, 0), '#9a6b45'),
-    painted(new THREE.ConeGeometry(8.6, 3.4, 4).rotateY(Math.PI / 4).scale(1.05, 1, 0.68).translate(0, h + 1.7, 0), '#6f4a32'),
-    painted(new THREE.BoxGeometry(3.4, 3.4, 0.1).translate(0, 1.7, d / 2 + 0.05), '#5a3a24'),
-    painted(new THREE.BoxGeometry(3.6, 0.15, 0.12).translate(0, 3.45, d / 2 + 0.08), '#e8e0d0'),
-  ]);
-}
-
 const WALL_COLORS = ['#f2e6d0', '#e8d4b0', '#f5efe6', '#e6c9a8', '#d9e2e6', '#f0d9c8', '#e9c3b5'];
-const TOWNHOUSE_COLORS = ['#e8b796', '#f0d58c', '#c9d8e0', '#f2e6d0', '#d8b0a0', '#e0e8c8'];
+const TOWNHOUSE_COLORS = ['#e8b796', '#f0d58c', '#c9d8e0', '#f2e6d0', '#d8b0a0', '#e0e8c8', '#f3c9a0', '#d9c7a7', '#b9cfc0', '#efe0b8', '#e2a990', '#cfd6dc'];
 
 class Occupancy {
   private cells = new Set<string>();
@@ -61,6 +54,11 @@ class Occupancy {
     const ci = Math.floor(x / this.size);
     const cj = Math.floor(z / this.size);
     for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) this.cells.add(`${i},${j}`);
+  }
+
+  /** Ist die Zelle an (x, z) frei? Belegt nichts. */
+  free(x: number, z: number): boolean {
+    return !this.cells.has(`${Math.floor(x / this.size)},${Math.floor(z / this.size)}`);
   }
 
   tryTake(x: number, z: number, radius = 0): boolean {
@@ -92,6 +90,39 @@ function toMesh(geo: THREE.BufferGeometry, items: Instance[], castShadow = true)
   mesh.castShadow = castShadow;
   mesh.receiveShadow = true;
   return mesh;
+}
+
+/** Gedrehtes Rechteck im Grundriss: Mitte, Richtung der Breite (ax, az), halbe Maße. */
+interface Rect {
+  x: number;
+  z: number;
+  ax: number;
+  az: number;
+  hw: number;
+  hd: number;
+}
+
+/** Überlappen sich zwei gedrehte Rechtecke? (Trennachsen-Test) */
+export function rectsOverlap(a: Rect, b: Rect): boolean {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  for (const r of [a, b]) {
+    for (const [ux, uz] of [[r.ax, r.az], [-r.az, r.ax]] as const) {
+      const ra = a.hw * Math.abs(a.ax * ux + a.az * uz) + a.hd * Math.abs(-a.az * ux + a.ax * uz);
+      const rb = b.hw * Math.abs(b.ax * ux + b.az * uz) + b.hd * Math.abs(-b.az * ux + b.ax * uz);
+      if (Math.abs(dx * ux + dz * uz) > ra + rb) return false;
+    }
+  }
+  return true;
+}
+
+function rectCorners(r: Rect): [number, number][] {
+  const bx = -r.az;
+  const bz = r.ax;
+  return [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([i, j]) => [
+    r.x + r.ax * r.hw * i! + bx * r.hd * j!,
+    r.z + r.az * r.hw * i! + bz * r.hd * j!,
+  ]);
 }
 
 /**
@@ -142,30 +173,108 @@ export function createProps(
     edgeOff: number;
     toRoad: { x: number; z: number };
     slot: ShopSlot;
+    /** Häuserzeile im Ortskern: Breite, Lage am Weg (für Rücksprung und Vorplatz). */
+    row?: { width: number; edge: RoadEdge; s: number; side: number; base: { x: number; z: number }; gapAfter: number };
   }
   const buildings: Building[] = [];
+  const rects: Rect[] = [];
+  const edgeOffOf = (e: RoadEdge) => (e.surface === 'town' ? 5.15 : e.surface === 'gravel' ? 2.4 : 3.2);
+  const inPlaza = (r: Rect) =>
+    PLAZAS.some((pl) => {
+      const n = roads.nodes.get(pl.node);
+      if (!n) return false;
+      // Abstand Platzmitte → Rechteck
+      const dx = n.x - r.x;
+      const dz = n.z - r.z;
+      const lx = Math.max(0, Math.abs(dx * r.ax + dz * r.az) - r.hw);
+      const lz = Math.max(0, Math.abs(-dx * r.az + dz * r.ax) - r.hd);
+      return Math.hypot(lx, lz) < pl.radius + 1.5;
+    });
 
+  // 1a. Ortskern: geschlossene Häuserzeilen direkt am Gehsteig, Haus an Haus
+  for (const e of roads.edges.values()) {
+    const edgeOff = edgeOffOf(e);
+    for (const side of [1, -1]) {
+      let s = 9 + rng() * 2;
+      while (s < e.length - 9) {
+        const width = pick(rng, TOWNHOUSE_WIDTHS);
+        const mid = s + width / 2;
+        if (mid + width / 2 > e.length - 9) break;
+        const p = e.pointAt(mid);
+        const toMarkt = markt ? Math.hypot(p.x - markt.x, p.z - markt.z) : Infinity;
+        if (!(townMask(p.x, p.z) > 0.7 && toMarkt < 260)) {
+          s += 3;
+          continue;
+        }
+        const d = e.directionAt(mid);
+        const nx = -d.dz * side;
+        const nz = d.dx * side;
+        // Platzbedarf inklusive bis zu 2,3 m Rücksprung für Läden mit Außenbereich
+        const span = TOWNHOUSE_DEPTH + 2.3;
+        const cOff = edgeOff + 0.9 + span / 2;
+        const rect: Rect = { x: p.x + nx * cOff, z: p.z + nz * cOff, ax: d.dx, az: d.dz, hw: width / 2 - 0.25, hd: span / 2 };
+        const off = edgeOff + 0.9 + TOWNHOUSE_DEPTH / 2;
+        const x = p.x + nx * off;
+        const z = p.z + nz * off;
+        const y = terrain.sample(x, z);
+        const corners = rectCorners(rect);
+        const ok =
+          y >= 2 && terrain.slope(x, z) <= 0.3 && !seaward(x, z, nx, nz) &&
+          [[x, z] as [number, number], ...corners].every(([cx, cz]) => occupied.free(cx, cz)) &&
+          corners.every(([cx, cz]) => distanceToRoad(roads, cx, cz, undefined, 30) >= edgeOff + 0.35) &&
+          !inPlaza(rect) && !rects.some((r) => rectsOverlap(r, rect));
+        if (!ok) {
+          s += 1.5;
+          continue;
+        }
+        rects.push(rect);
+        buildings.push({
+          kind: 'townhouse', x, y, z,
+          rot: Math.atan2(-nx, -nz),
+          off, edgeOff,
+          toRoad: { x: -nx, z: -nz },
+          slot: hafen && Math.hypot(x - hafen.x, z - hafen.z) < 170
+            ? { x, z, district: 'hafen', town: 'lumen', centerDist: Math.hypot(x - hafen.x, z - hafen.z), barn: false, id: buildings.length }
+            : { x, z, district: 'kern', town: 'lumen', centerDist: toMarkt, barn: false, id: buildings.length },
+          row: { width, edge: e, s: mid, side, base: { x: p.x, z: p.z }, gapAfter: 0 },
+        });
+        // Lücken: meist Wand an Wand, manchmal eine Fuge oder ein Durchgang
+        const r = rng();
+        const gap = r < 0.7 ? 0 : r < 0.9 ? 0.2 + rng() * 0.4 : 3 + rng() * 3;
+        buildings[buildings.length - 1]!.row!.gapAfter = gap;
+        s += width + gap;
+      }
+    }
+  }
+  for (const b of buildings) occupied.take(b.x, b.z, 3);
+
+  // 1b. Übrige Bauplätze: freistehende Häuser in Stadt und Dörfern, Scheunen
   for (const e of roads.edges.values()) {
     for (let s = 12; s < e.length - 12; s += 15) {
       const p = e.pointAt(s);
       const town = townMask(p.x, p.z) > 0.7;
       const toMarkt = markt ? Math.hypot(p.x - markt.x, p.z - markt.z) : Infinity;
-      const core = town && toMarkt < 260;
+      if (town && toMarkt < 260) continue; // Ortskern: siehe oben
       const village = villages.find((v) => Math.hypot(v.x - p.x, v.z - p.z) < 150);
       const rural = !town && !village && Math.hypot(p.x - REBLAND.x, p.z - REBLAND.z) < REBLAND.radius + 200;
       if (!town && !village && !(rural && rng() < 0.035)) continue;
       if (village && rng() < 0.45) continue;
       const d = e.directionAt(s);
       for (const side of [1, -1]) {
-        if (rng() < (core ? 0.08 : 0.25)) continue;
-        const kind = core ? 'townhouse' : rural ? 'barn' : 'house';
-        const off = kind === 'barn' ? 18 : kind === 'townhouse' ? 12 : 13 + rng() * 3;
+        if (rng() < 0.25) continue;
+        const kind = rural ? 'barn' : 'house';
+        const off = kind === 'barn' ? 18 : 13 + rng() * 3;
         const x = p.x - d.dz * off * side;
         const z = p.z + d.dx * off * side;
         if (distanceToRoad(roads, x, z, undefined, 30) < (kind === 'barn' ? 11 : 8)) continue;
         const y = terrain.sample(x, z);
         if (y < 2 || terrain.slope(x, z) > 0.3 || seaward(x, z, -d.dz * side, d.dx * side)) continue;
+        const rect: Rect = kind === 'barn'
+          ? { x, z, ax: d.dx, az: d.dz, hw: 7, hd: 5 }
+          : { x, z, ax: d.dx, az: d.dz, hw: 4.8, hd: 4.2 };
+        if (rects.some((r) => rectsOverlap(r, rect))) continue;
         if (!occupied.tryTake(x, z, kind === 'barn' ? 9 : 5)) continue;
+        rects.push(rect);
 
         // Lage für die Ladenverteilung
         const toHafen = hafen ? Math.hypot(x - hafen.x, z - hafen.z) : Infinity;
@@ -173,14 +282,14 @@ export function createProps(
         if (kind === 'barn') slot = { x, z, district: 'land', town: 'land', centerDist: 0, barn: true };
         else if (village) slot = { x, z, district: 'dorf', town: village.id, centerDist: Math.hypot(x - village.x, z - village.z), barn: false };
         else if (town && toHafen < 170) slot = { x, z, district: 'hafen', town: 'lumen', centerDist: toHafen, barn: false };
-        else slot = { x, z, district: core ? 'kern' : 'stadt', town: 'lumen', centerDist: toMarkt, barn: false };
+        else slot = { x, z, district: 'stadt', town: 'lumen', centerDist: toMarkt, barn: false };
 
         buildings.push({
           kind, x, y, z,
           // Front (+z) zur Straße
           rot: Math.atan2(d.dz * side, -d.dx * side),
           off,
-          edgeOff: e.surface === 'town' ? 5.15 : e.surface === 'gravel' ? 2.4 : 3.2,
+          edgeOff: edgeOffOf(e),
           toRoad: { x: d.dz * side, z: -d.dx * side },
           slot: { ...slot, id: buildings.length },
         });
@@ -197,6 +306,7 @@ export function createProps(
   const gardenBushes: Instance[] = [];
   const shops: ShopPlacement[] = [];
   const footprints: { x: number; z: number }[][] = [];
+  const aprons: THREE.BufferGeometry[] = [];
   const doorPoint = new THREE.Vector3();
 
   for (const b of buildings) {
@@ -215,17 +325,27 @@ export function createProps(
     const town = b.kind === 'townhouse';
     const listIndex = (town ? 1 : 0) + (shop ? 2 : 0);
     const list = variantLists[listIndex]!;
-    const vi = Math.floor(rng() * list.length);
-    const variant = list[vi]!;
+    // Stadthäuser: nur Varianten mit passender Breite
+    const candidates = list.map((v, i) => ({ v, i })).filter(({ v }) => !b.row || v.width === b.row.width);
+    const { v: variant, i: vi } = candidates[Math.floor(rng() * candidates.length)]!;
     const sc = town ? 1 : 0.85 + rng() * 0.25;
-    const sy = town ? 0.92 + rng() * 0.2 : 0.9 + rng() * 0.15;
+    const sy = town ? 1 : 0.9 + rng() * 0.15;
+
+    if (b.row) {
+      // Läden springen zurück, damit Tische und Aufsteller Platz haben
+      const setback = shop ? (hasTerrace(shop.type) ? 2.3 : 0.9) : 0;
+      b.off += setback;
+      b.x = b.row.base.x - b.toRoad.x * b.off;
+      b.z = b.row.base.z - b.toRoad.z * b.off;
+      b.y = terrain.sample(b.x, b.z);
+    }
     const matrix = mat(b.x, b.y - 0.3, b.z, b.rot, sc, sy, sc);
     const palette = town ? TOWNHOUSE_COLORS : WALL_COLORS;
     instances[listIndex]![vi]!.push({ matrix, color: new THREE.Color(palette[Math.floor(rng() * palette.length)]!) });
 
     // Grundfläche (für die Grasmaske: kein Gras an den Wänden)
-    const hw = (town ? 3 : 4) + 0.4;
-    const hd = (town ? 4.5 : 3.5) + 0.4;
+    const hw = variant.width / 2 + 0.4;
+    const hd = variant.depth / 2 + 0.4;
     footprints.push([[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([lx, lz]) => {
       doorPoint.set(lx!, 0, lz!).applyMatrix4(matrix);
       return { x: doorPoint.x, z: doorPoint.z };
@@ -235,8 +355,30 @@ export function createProps(
     if (shop) {
       shops.push({
         type: shop.type, name: shop.name, x: b.x, y: b.y - 0.3, z: b.z, rot: b.rot, sc, sy,
-        front: variant.front, window: variant.shop, door: variant.door, depth,
+        front: variant.front, window: variant.shop, door: variant.door, depth, halfWidth: variant.width / 2 - 0.4,
       });
+    }
+
+    if (b.row) {
+      // Gepflasterter Vorplatz zwischen Hausfront und Gehsteig (statt Rasen)
+      const { edge, s, side, width, gapAfter } = b.row;
+      const zFront = variant.front - 0.05;
+      const zRoad = b.off - b.edgeOff + 0.35;
+      // In Laufrichtung (+s) liegt lokal −side · x; dort auch die Lücke zum Nachbarn pflastern
+      const ahead = width / 2 + 0.3 + gapAfter;
+      const lxs = side > 0 ? [-ahead, width / 2 + 0.3] : [-(width / 2 + 0.3), ahead];
+      const pts = [[lxs[0]!, zFront], [lxs[1]!, zFront], [lxs[1]!, zRoad], [lxs[0]!, zRoad]].map(([lx, lz]) => {
+        doorPoint.set(lx!, 0, lz!).applyMatrix4(mat(b.x, 0, b.z, b.rot, 1));
+        // Gehsteighöhe an dieser Stelle: Wegprofil + Fahrbahnanhebung + Bordstein
+        const walkY = edge.pointAt(s - side * lx!).y + 0.26;
+        return new THREE.Vector3(doorPoint.x, Math.max(walkY, terrain.meshHeight(doorPoint.x, doorPoint.z) + 0.02), doorPoint.z);
+      });
+      const g = new THREE.BufferGeometry().setFromPoints([pts[0]!, pts[2]!, pts[1]!, pts[0]!, pts[3]!, pts[2]!]);
+      g.computeVertexNormals();
+      if (g.attributes.normal!.getY(0) < 0) g.setFromPoints([pts[0]!, pts[1]!, pts[2]!, pts[0]!, pts[2]!, pts[3]!]).computeVertexNormals();
+      aprons.push(part(g, '#c4bcae', 0, SURF.paving));
+      footprints.push(pts.map((q) => ({ x: q.x, z: q.z })));
+      continue;
     }
 
     // Weg von der Tür bis an den Gehsteig bzw. Fahrbahnrand
@@ -260,11 +402,24 @@ export function createProps(
 
   const tinted = (geo: THREE.BufferGeometry, items: Instance[]) => {
     const m = toMesh(geo, items);
-    m.material = tintedMaterial();
+    m.material = houseMaterial();
     return m;
   };
-  variantLists.forEach((list, li) => list.forEach((v, vi) => group.add(tinted(v.geometry, instances[li]![vi]!))));
-  group.add(toMesh(barn(), barns));
+  const houseMat = houseMaterial();
+  variantLists.forEach((list, li) => list.forEach((v, vi) => {
+    if (instances[li]![vi]!.length === 0) return;
+    const m = tinted(v.geometry, instances[li]![vi]!);
+    m.material = houseMat;
+    group.add(m);
+  }));
+  const barnMesh = toMesh(variants.barn, barns);
+  barnMesh.material = houseMat;
+  group.add(barnMesh);
+  if (aprons.length > 0) {
+    const apronMesh = new THREE.Mesh(mergeGeometries(aprons)!, houseMat);
+    apronMesh.receiveShadow = true;
+    group.add(apronMesh);
+  }
   const paths = createFrontPaths(frontPaths, terrain, mulberry32(seed ^ 0xa11e));
   group.add(paths.group);
   group.add(createShopFronts(shops, terrain, mulberry32(seed ^ 0x5f0f)));

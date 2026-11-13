@@ -260,6 +260,13 @@ Offen aus Phase 5:
 - Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
 - Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
 
+**13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**
+- Oberflächen im Shader statt Bilddateien (`houseMaterial()` in `houses.ts`, Attribut `surf`): Putz mit Struktur und Flecken, Regenspuren unter der Traufe, Schmutz und Spritzwasser am Sockel, an manchen Häusern abgeplatzter Putz mit Ziegeln darunter. Dazu Dachziegel in versetzten Reihen mit Moos auf der Nordseite, Steinquader (Sockel, Fensterbänke, Eckquader), Holzbretter (Türen, Läden, Scheunen), Fachwerk mit Streben und Glas mit Himmelsspiegelung. Feine Muster blenden in der Ferne aus (gegen Flimmern)
+- Echte Sattel- und Walmdächer mit Überstand, Firstziegeln, Traufbrett, Regenrinne und Fallrohr. Giebel zur Straße oder Traufe zur Straße, Gauben, Schornsteine mit Abdeckung
+- Wohnhäuser (10 Varianten + 3 Läden): manchmal Fachwerk-Obergeschoss mit Auskragung, Eckquader, Efeu an einer Seitenwand, Bank neben der Tür, Briefkasten, Vorhänge und Fenstersturz
+- Stadthäuser (12 Varianten in 4 Breiten von 5 bis 8 m + 4 Läden): 2 bis 4 Geschosse, Gesimse, abgesetzte Sockelzone, Balkone mit Gitter und Blumen
+- Ortskern um den Marktplatz: geschlossene Häuserzeilen direkt am Gehsteig, Haus an Haus, ab und zu eine Fuge oder ein Durchgang (`props.ts`, Überlappungstest `rectsOverlap`, getestet). Läden mit Außenbereich springen 2,3 m zurück. Zwischen Hausfront und Gehsteig liegt Pflaster statt Rasen. Am Hafen gelten die Zeilenhäuser weiter als Hafenlage (Cafés, Fischimbiss)
+
 **12.11.2026, Ortskerne und Feinschliff:**
 - Läden, Cafés und Restaurants nach Lage verteilt (`src/world/shops.ts`, getestet): dichte Ladenzeile um den Marktplatz, Eisdiele, Fischimbiss und Restaurants am Hafen, Weinstube, Dorfladen und Gasthaus in den Dörfern, Hofläden an Scheunen. Ein Fahrradladen pro Ort (Lumen, Rebdorf, Hangdorf), Obergrenzen je Art und Ort, gleiche Läden mindestens 70 m auseinander, jeder Name nur einmal pro Ort. Aktuell 44 Läden
 - Ladenfronten (`shopFronts.ts`): Schaufenster mit Auslage je Art, gestreifte Markise, Schild mit Namen (Texturatlas), Ausleger-Schild bei Gasthaus, Weinstube und Fahrradladen. Außenbereiche mit Bistrotischen und Schirmen, Biertischen, Fahrradständer, Blumeneimern, Fässern, Kisten und Kürbissen
@@ -274,7 +281,9 @@ Offen aus Phase 5b:
 - [ ] Bildrate auf allen drei Stufen im echten Browser messen (headless nur mit Software-Rendering geprüft)
 - [ ] Auf „Hoch“ ist der Himmel etwas blasser als auf „Mittel“, weil dort auch der Himmel durch das Tone Mapping läuft
 - [ ] In den Randbereichen von Lumen (außerhalb der Stadtmaske) wächst noch dichtes Gras zwischen den Häusern
-- [ ] Stadthäuser stehen nah am Gehsteig, ihre Wege sind nur etwa 1,5 m lang
+- [x] Stadthäuser stehen nah am Gehsteig, ihre Wege sind nur etwa 1,5 m lang (jetzt Häuserzeilen mit gepflastertem Vorplatz)
+- [ ] Häuser-Shader auf schwächerer Hardware prüfen, ggf. auf „Niedrig“ vereinfachen
+- [ ] Kirche, Kapelle und Hafengebäude (`landmarks.ts`) haben noch keine Oberflächen
 - [ ] Café-Gäste, Passanten, Geräusche (bewusst zurückgestellt), Währung und Laden für Rad-Skins (noch zu entwerfen)
 - [ ] Kamera-Schwenk und Zoom bei Tempo am echten Rad beurteilen
 
