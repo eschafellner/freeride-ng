@@ -8,6 +8,9 @@ import { createWorld, DEFAULT_SEED } from '../src/world/world';
 import { REGIONS } from '../src/world/roadLayout';
 import { MVP_SEGMENTS, resolveSegments } from '../src/world/segments';
 import { findHairpins } from '../src/game/mountain';
+import { LAKES, lakeShape, nearestLake, waterLevelAt } from '../src/world/lakes';
+import { shorePoint } from '../src/world/seenLayout';
+import { seenMask, westCoastX } from '../src/world/terrainGen';
 
 const world = createWorld();
 
@@ -63,7 +66,7 @@ describe('Wegenetz (MVP, Standard-Seed)', () => {
 
   it('hat ungefähr die geplante Länge', () => {
     expect(roads.totalLength).toBeGreaterThan(17000);
-    expect(roads.totalLength).toBeLessThan(45000);
+    expect(roads.totalLength).toBeLessThan(55000);
   });
 
   it('überschreitet nirgends 10 % Steigung', () => {
@@ -313,9 +316,100 @@ describe('Hoher Kogel', () => {
 
   it('gesperrt kehrt man am Waldrand nicht in die Westrampe ab', () => {
     roads.lockedRegions.add('kogel');
-    const r = new RiderOnNetwork(roads, 'waldweg', 0, 1);
+    const r = new RiderOnNetwork(roads, 'waldweg-n', 0, 1);
     expect(r.upcomingExits().some((x) => x.edge.id === 'westrampe')).toBe(false);
     roads.lockedRegions.delete('kogel');
     expect(r.upcomingExits().some((x) => x.edge.id === 'westrampe')).toBe(true);
+  });
+});
+
+describe('Spiegelseen', () => {
+  const roads = world.roads;
+  const seenEdges = [...roads.edges.values()].filter((e) => e.region === 'seen');
+
+  it('ist ein eigenes Gebiet ab Level 4 mit Zugang am Forsthaus', () => {
+    const r = REGIONS.find((x) => x.id === 'seen')!;
+    expect(r.unlockLevel).toBe(4);
+    expect(r.gateNodes).toEqual(['forsthaus']);
+    const gate = roads.node('forsthaus');
+    expect(gate.gate).toBe(true);
+    expect(gate.region).toBeUndefined();
+    // Der Waldweg läuft am Forsthaus durch, nur der Seeweg gehört zum Gebiet
+    expect(gate.edges.map((id) => roads.edge(id).region)).toEqual(expect.arrayContaining([undefined, undefined, 'seen']));
+  });
+
+  it('gesperrt fährt man am Forsthaus geradeaus weiter zum Waldrand', () => {
+    roads.lockedRegions.add('seen');
+    const r = new RiderOnNetwork(roads, 'waldweg', 0, 1);
+    expect(r.upcomingExits().map((x) => x.edge.id)).toEqual(['waldweg-n']);
+    roads.lockedRegions.delete('seen');
+    expect(r.upcomingExits().map((x) => x.edge.id).sort()).toEqual(['seeweg', 'waldweg-n']);
+  });
+
+  it('drei Seen liegen im Seengebiet, ihr Wasser auf eigener Höhe', () => {
+    expect(LAKES).toHaveLength(3);
+    for (const lake of LAKES) {
+      const l = lake.lobes[0]!;
+      expect(seenMask(l.x, l.z)).toBeGreaterThan(0.99);
+      expect(lakeShape(lake, l.x, l.z)).toBeLessThan(0.1);
+      expect(waterLevelAt(l.x, l.z)).toBe(lake.level);
+      // Seegrund unter dem Spiegel, rundherum Land knapp darüber
+      expect(world.terrain.sample(l.x, l.z)).toBeLessThan(lake.level - 3);
+      for (let deg = 0; deg < 360; deg += 15) {
+        const [x, z] = shorePoint(lake.id, 0, deg, 30);
+        if (lakeShape(lake, x, z) < 1.05) continue; // Engstelle zwischen zwei Becken
+        expect(world.terrain.sample(x, z)).toBeGreaterThan(lake.level);
+      }
+    }
+    // Außerhalb der Seen ist der Wasserspiegel das Meer
+    expect(waterLevelAt(0, 0)).toBe(0);
+    expect(nearestLake(-1700, -1160).lake?.id).toBe('untersee');
+  });
+
+  it('die Westküste liegt im Norden weiter draußen, bei Rebland wie bisher', () => {
+    expect(westCoastX(0)).toBeCloseTo(-1760, 0);
+    expect(westCoastX(-2000)).toBeLessThan(-2700);
+    expect(world.terrain.sample(-2900, -1700)).toBeLessThan(0);
+  });
+
+  it('die Wege sind flach und bleiben trocken', () => {
+    let total = 0;
+    let climb = 0;
+    for (const e of seenEdges) {
+      total += e.length;
+      for (let s = 0; s + 10 < e.length; s += 10) {
+        const dy = e.heightAt(s + 10) - e.heightAt(s);
+        climb += Math.abs(dy);
+      }
+      if (e.surface === 'bridge') continue;
+      for (let s = 0; s < e.length; s += 5) {
+        const p = e.pointAt(s);
+        expect(p.y - waterLevelAt(p.x, p.z), `${e.id} @ ${s}`).toBeGreaterThan(1);
+        // Abstand zum Ufer, außer direkt an den Brückenköpfen
+        const nearBridge = ['seesteg-s', 'seesteg-n'].some((id) => Math.hypot(roads.node(id).x - p.x, roads.node(id).z - p.z) < 45);
+        if (!nearBridge) expect(nearestLake(p.x, p.z).e, `${e.id} @ ${s}`).toBeGreaterThan(1.05);
+      }
+    }
+    expect(total).toBeGreaterThan(8000);
+    // Im Mittel unter 3 % (auf und ab zusammen)
+    expect(climb / total).toBeLessThan(0.03);
+  });
+
+  it('die Seebrücke überspannt den Spiegelsee mit Abstand zum Wasser', () => {
+    const b = roads.edge('seebruecke');
+    expect(b.surface).toBe('bridge');
+    expect(b.length).toBeGreaterThan(200);
+    const lake = LAKES.find((l) => l.id === 'spiegelsee')!;
+    const mid = b.pointAt(b.length / 2);
+    expect(lakeShape(lake, mid.x, mid.z)).toBeLessThan(1);
+    expect(world.terrain.sample(mid.x, mid.z)).toBeLessThan(lake.level - 2);
+    for (let s = 0; s <= b.length; s += 10) expect(b.heightAt(s)).toBeGreaterThan(lake.level + 3);
+  });
+
+  it('das Zeitfahren Seerunde ist ein Rundkurs mit der Seebrücke als Abkürzung daneben', () => {
+    const [seg] = resolveSegments(roads, MVP_SEGMENTS.filter((s) => s.id === 'tt-seerunde'));
+    expect(seg!.nodes[0]).toBe(seg!.nodes[seg!.nodes.length - 1]);
+    expect(seg!.length).toBeGreaterThan(2500);
+    expect(seg!.legs.some((l) => l.edge.id === 'seebruecke')).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Heightfield } from '../world/heightfield';
+import { waterLevelAt } from '../world/lakes';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
 import { part, sharedHouseMaterial, SURF, type Surf } from './houses';
 
@@ -19,13 +20,25 @@ export function createBridges(roads: RoadNetwork, terrain: Heightfield): THREE.G
   group.name = 'bruecken';
   for (const e of roads.edges.values()) {
     if (e.surface !== 'bridge') continue;
-    const mesh = new THREE.Mesh(mergeGeometries(bridgeParts(e, terrain))!, sharedHouseMaterial());
+    const parts = isLakeBridge(e) ? woodenBridgeParts(e, terrain) : bridgeParts(e, terrain);
+    const mesh = new THREE.Mesh(mergeGeometries(parts)!, sharedHouseMaterial());
     mesh.name = `bruecke-${e.id}`;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);
   }
   return group;
+}
+
+/** Wasserspiegel unter der Brückenmitte (0 = Meer). */
+function waterUnder(e: RoadEdge): number {
+  const m = e.pointAt(e.length / 2);
+  return waterLevelAt(m.x, m.z);
+}
+
+/** Brücken über die Bergseen sind aus Holz (Fahrbahn aus Bohlen, ohne Markierung). */
+export function isLakeBridge(e: RoadEdge): boolean {
+  return e.surface === 'bridge' && waterUnder(e) > 0;
 }
 
 /** Ein Quader entlang des Weges zwischen s0 und s1, seitlich versetzt. */
@@ -100,6 +113,65 @@ function bridgeParts(e: RoadEdge, terrain: Heightfield): THREE.BufferGeometry[] 
     const ground = terrain.sample(c.x, c.z) - 3;
     const h = c.y - ground;
     p.push(part(new THREE.BoxGeometry(DECK_HALF * 2 + 1, h, 5).rotateY(Math.atan2(d.dx, d.dz)).translate(c.x, ground + h / 2, c.z), dark, 0, SURF.stone, c.y));
+  }
+  return p;
+}
+
+/**
+ * Holzbrücke über einen Bergsee: Bohlenbelag auf Längsträgern, Geländer aus Pfosten
+ * und Handlauf, Joche aus je zwei Rundholzpfählen mit Querbalken, kleine Laternen.
+ */
+function woodenBridgeParts(e: RoadEdge, terrain: Heightfield): THREE.BufferGeometry[] {
+  const p: THREE.BufferGeometry[] = [];
+  const wood = '#9a7652';
+  const dark = '#5e4630';
+  const level = waterUnder(e);
+  const half = 3.6;
+  for (let s = 0; s < e.length; s += 4) {
+    const s1 = Math.min(e.length, s + 4);
+    // Belag und Längsträger
+    p.push(along(e, s, s1, 0, half * 2, -0.35, 0.06, wood, SURF.wood));
+    for (const side of [-1, 1]) {
+      p.push(along(e, s, s1, side * (half - 0.4), 0.35, -0.95, -0.35, dark, SURF.wood));
+      // Handlauf und Mittelholm
+      p.push(along(e, s, s1, side * (half - 0.12), 0.16, 1.0, 1.14, wood, SURF.wood));
+      p.push(along(e, s, s1, side * (half - 0.12), 0.08, 0.5, 0.6, dark, SURF.wood));
+    }
+  }
+  // Geländerpfosten alle 2 m
+  for (let s = 0; s <= e.length; s += 2) {
+    const c = e.pointAt(s);
+    const d = e.directionAt(s);
+    for (const side of [-1, 1]) {
+      const x = c.x - d.dz * side * (half - 0.12);
+      const z = c.z + d.dx * side * (half - 0.12);
+      p.push(part(new THREE.BoxGeometry(0.14, 1.1, 0.14).rotateY(Math.atan2(d.dx, d.dz)).translate(x, c.y + 0.55, z), dark, 0, SURF.wood));
+    }
+  }
+  // Joche: zwei Rundholzpfähle bis zum Seegrund, oben ein Querbalken
+  const n = Math.max(1, Math.round(e.length / 14));
+  for (let k = 0; k <= n; k++) {
+    const s = (k / n) * e.length;
+    const c = e.pointAt(s);
+    const d = e.directionAt(s);
+    const rot = Math.atan2(d.dx, d.dz);
+    for (const side of [-1, 1]) {
+      const x = c.x - d.dz * side * (half - 0.6);
+      const z = c.z + d.dx * side * (half - 0.6);
+      const ground = Math.min(terrain.sample(x, z), level - 0.5) - 0.8;
+      const h = c.y - 0.9 - ground;
+      p.push(part(new THREE.CylinderGeometry(0.22, 0.26, h, 7).translate(x, ground + h / 2, z), dark, 0, SURF.wood));
+    }
+    p.push(part(new THREE.BoxGeometry(half * 2 + 0.4, 0.3, 0.35).rotateY(rot).translate(c.x, c.y - 1.05, c.z), dark, 0, SURF.wood));
+    // Laterne an jedem dritten Joch, abwechselnd links und rechts
+    if (k % 3 === 1) {
+      const side = k % 2 ? 1 : -1;
+      const lx = c.x - d.dz * side * (half - 0.12);
+      const lz = c.z + d.dx * side * (half - 0.12);
+      p.push(part(new THREE.CylinderGeometry(0.06, 0.07, 1.6, 6).translate(lx, c.y + 1.9, lz), dark));
+      p.push(part(new THREE.BoxGeometry(0.3, 0.36, 0.3).translate(lx, c.y + 2.85, lz), '#fff2c4', 0, SURF.light));
+      p.push(part(new THREE.ConeGeometry(0.28, 0.26, 4).rotateY(Math.PI / 4).translate(lx, c.y + 3.16, lz), dark));
+    }
   }
   return p;
 }

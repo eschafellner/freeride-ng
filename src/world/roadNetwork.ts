@@ -1,4 +1,5 @@
 import type { Heightfield } from './heightfield';
+import { waterLevelAt } from './lakes';
 import { clamp, smoothstep } from './random';
 import type { LayoutNode, RoadLayout, Surface } from './roadLayout';
 
@@ -116,6 +117,8 @@ const DEFAULTS: Required<NetworkOptions> = {
 
 /** Fahrbahnhöhe an den Brückenenden mindestens (m über dem Meer). */
 export const BRIDGE_MIN_HEIGHT = 9;
+/** Fahrbahn an den Enden einer Seebrücke mindestens so hoch über dem Seespiegel (m). */
+export const LAKE_BRIDGE_CLEARANCE = 3.5;
 /** Zusätzliche Höhe in der Brückenmitte (m). */
 const BRIDGE_ARCH = 2;
 
@@ -305,12 +308,16 @@ export function buildRoadNetwork(
     });
   }
   // Brücken: Ufer etwas anheben, damit die Fahrbahn deutlich über dem Wasser liegt
+  // (über dem Meer höher als über einem See, dort fahren keine Boote mit Mast)
   for (const e of layout.edges) {
     if (e.surface !== 'bridge') continue;
-    for (const id of [e.from, e.to]) {
-      const n = net.nodes.get(id);
-      if (n) n.y = Math.max(n.y, BRIDGE_MIN_HEIGHT);
-    }
+    const a = net.nodes.get(e.from);
+    const b = net.nodes.get(e.to);
+    if (!a || !b) continue;
+    const pts: [number, number][] = [[a.x, a.z], ...(e.via ?? []), [b.x, b.z], [(a.x + b.x) / 2, (a.z + b.z) / 2]];
+    const water = Math.max(...pts.map(([x, z]) => waterLevelAt(x, z)));
+    const min = water > 0 ? water + LAKE_BRIDGE_CLEARANCE : BRIDGE_MIN_HEIGHT;
+    for (const n of [a, b]) n.y = Math.max(n.y, min);
   }
 
   const smoothRadius = Math.max(1, Math.round(o.smoothWindow / o.spacing / 2));

@@ -3,7 +3,8 @@ import type { Heightfield } from '../world/heightfield';
 import { fieldAt, REBLAND } from '../world/placement';
 import { mulberry32, smoothstep } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
-import { kogelMask, steppeMask, townMask } from '../world/terrainGen';
+import { nearestLake } from '../world/lakes';
+import { kogelMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
 import { NOISE_GLSL } from './shaderChunks';
 
 const COLORS = {
@@ -29,6 +30,11 @@ const COLORS = {
   alpineDry: new THREE.Color('#b6b270'),
   scree: new THREE.Color('#a9a497'),
   screeDark: new THREE.Color('#87827a'),
+  // Spiegelseen: Seegrund, Kiesufer, Uferwiesen
+  lakeBed: new THREE.Color('#7d7a58'),
+  lakeBedDeep: new THREE.Color('#4f5a48'),
+  pebbles: new THREE.Color('#bdb08a'),
+  shoreMeadow: new THREE.Color('#86b94e'),
 };
 
 /** Höhen am Kogel in m: ab hier Almwiesen statt Wald, darüber Geröll und Fels. */
@@ -86,6 +92,7 @@ export function createTerrainMesh(
     const cz = (a.z + b.z + c.z) / 3;
     const mask = roads.maskAt(terrain, cx, cz);
     const r = rng();
+    let lake: ReturnType<typeof nearestLake>;
 
     // Am Kogel sind die Flanken gleichmäßig steil und bewaldet: Fels erst bei steileren Stellen
     const steep = Math.abs(n.y) < (kogelMask(cx, cz) > 0.03 ? 0.68 : 0.82);
@@ -96,6 +103,20 @@ export function createTerrainMesh(
     } else if (h < 2.5) {
       tmp.copy(COLORS.sand);
       grass = 0;
+    }
+    // Spiegelseen: Seegrund, schmales Kiesufer, Uferwiesen statt Wald
+    else if (seenMask(cx, cz) > 0.3 && (lake = nearestLake(cx, cz)).lake && lake.e < 1.6 && mask < 0.15) {
+      const level = lake.lake!.level;
+      if (h < level - 0.25) {
+        tmp.copy(COLORS.lakeBed).lerp(COLORS.lakeBedDeep, smoothstep(0, 6, level - h) * 0.8 + r * 0.1);
+        grass = 0;
+      } else if (h < level + 0.9 + r * 0.5) {
+        tmp.copy(COLORS.pebbles).lerp(COLORS.lakeBed, r * 0.35);
+        grass = 0.1;
+      } else {
+        tmp.copy(COLORS.shoreMeadow).lerp(COLORS.forest, smoothstep(1.25, 1.6, lake.e) * 0.6 + r * 0.15);
+        grass = 0.85;
+      }
     }
     // Glutsteppe: trockener Boden, rote Felswände, wenig Gras
     else if (steppeMask(cx, cz) > 0.5) {

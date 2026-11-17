@@ -20,7 +20,7 @@ Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitst
 |---|---|---|---|---|---|---|---|
 | 1 | **Hafenstadt Lumen** (Start) | Südküste | Hafen, Promenade, Altstadt, Raster-Straßen | 0–2 % | 0–30 m | ~8 km | MVP |
 | 2 | **Rebland** | Südwesten | sanfte Hügel, Weinberge, zwei Dörfer | 2–6 % | 30–250 m | ~15 km | MVP |
-| 3 | **Spiegelseen** | Nordwesten | Wald, drei Seen, Ufer-Rundweg | 0–3 % | 150–200 m | ~15 km | 6 |
+| 3 | **Spiegelseen** | Nordwesten | Wald, drei Seen, Ufer-Rundweg, Seebrücke | 0–3 %, kurze Rampen bis 6 % | 150–180 m | ~9,7 km | 6 ✅ |
 | 4 | **Hoher Kogel** | Norden, über Rebland | einzelner Berg, Serpentinen, Gipfel mit Aussicht | 6–10 % | bis 690 m | ~14,5 km | 6 ✅ |
 | 5 | **Glutsteppe** | Osten | trocken, rote Felsen, weite Sicht, Canyon | 0–4 %, lange Geraden | 10–200 m | ~7,5 km (erste Ausbaustufe) | 6 ✅ |
 | 6 | **Nordkap** | Nordküste | Klippen, Leuchtturm, Küstenstraße | wellig 3–8 % | 20–180 m | ~12 km | 6 |
@@ -108,6 +108,32 @@ Steilufer (`NORTH_COAST_Z`).
 - **Orte und Punkte:** Kogelalm (Almhütte mit Balkon, Tisch, Brunnen, Kühe) und Gipfel
   (Gipfelkreuz, Biwakhütte), beide Aussichtspunkte. Kehrenschilder „Kehre n“ mit Höhe,
   gezählt wie an Alpenpässen von unten herunter bis 1 am Gipfel. 5 Kristalle.
+
+## Spiegelseen (Phase 6, ab Level 4)
+
+Umgesetzt im November 2026. Dafür liegt die **Westküste im Norden weiter draußen**
+(`westCoastX` in `terrainGen.ts`: bei Rebland unverändert, nördlich von z ≈ −1100 bei
+x ≈ −2720). Die Hochfläche fällt dort über einen breiten, bewaldeten Steilhang zum Meer ab.
+
+- **Lage:** westlich des Hohen Kogels, zwischen Rebland und Nordküste. Zugang über den
+  **Seeweg**, der am **Forsthaus** vom Waldweg (Rebland → Waldrand) abzweigt. Dort steht
+  bis Level 4 die Schranke, der Waldweg selbst bleibt frei.
+- **Gelände:** sanfte Waldhochfläche, nach Norden leicht ansteigend (160 → 180 m), flache
+  Kuppen. Drei Seen mit eigener Wasserhöhe, ringsum Kiesufer und Uferwiesen, dahinter Wald:
+  - **Untersee** (158 m), klein, mit **Seedorf** am Südufer
+  - **Spiegelsee** (168 m), der größte, aus zwei Becken mit einer Engstelle. Darüber führt die
+    **Seebrücke** (Holzbrücke, ≈ 300 m, Bohlenbelag, Joche aus Rundholz, Laternen)
+  - **Obersee** (176 m) im Norden, gut 150 m vor dem Steilufer zum Nordmeer
+- **Wege (≈ 9,7 km):** Seeweg, Unterseeweg (Schotter), Waldstraße, Ostuferweg, Südufer und
+  Nordufer (Rundweg um den Spiegelsee), Seebrücke, Oberseeweg, Obersee-Rundweg (Nordseite
+  Schotter), Klippenweg an der Westküste. Die Uferwege laufen in festem Abstand (45 m) um die
+  Seen; ihre Stützpunkte werden aus der Seeform berechnet (`src/world/seenLayout.ts`).
+- **Orte und Punkte:** Seedorf (Dorf mit Läden), Westbucht und Oberseeblick
+  (Aussichtspunkte), Ostbucht. 5 Kristalle. Zeitfahren **Seerunde** um den Spiegelsee
+  (≈ 3 km, ohne die Brücke), Erfolg „Spiegelglatt“.
+- Formen zum Nachbessern: Seen in `src/world/lakes.ts` (`LAKES`: Becken als gedrehte
+  Ellipsen, Wasserhöhe, Tiefe), Hochfläche in `terrainGen.ts` (`SEENLAND`, `seenMask`).
+  Wasser der Seen in `water.ts` (gleicher Shader wie das Meer, ruhiger und dunkler).
 
 ## Datenformat (Vorschlag für Phase 3)
 

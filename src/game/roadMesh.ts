@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Surface } from '../world/roadLayout';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
+import { isLakeBridge } from './bridges';
 
 const SURFACE: Record<Surface, { width: number; color: string }> = {
   asphalt: { width: 5.5, color: '#55585e' },
@@ -81,6 +82,8 @@ export function createRoadMesh(roads: RoadNetwork): THREE.Mesh {
   const color = new THREE.Color();
 
   for (const e of roads.edges.values()) {
+    // Holzbrücken über den Seen: der Bohlenbelag der Brücke ist die Fahrbahn
+    if (isLakeBridge(e)) continue;
     const s = SURFACE[e.surface];
     color.set(s.color);
     addRibbon(e, s.width, color, pos, col, idx);

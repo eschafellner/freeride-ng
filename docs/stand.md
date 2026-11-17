@@ -1,4 +1,4 @@
-# Stand: Freeride NG (16.11.2026)
+# Stand: Freeride NG (17.11.2026)
 
 Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 „Stand & offene Punkte“), die Welt in `docs/welt.md`, Arbeitsregeln in `CLAUDE.md`.
@@ -7,12 +7,13 @@ Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 
 Das **MVP ist fertig** (Phasen 1 bis 4), dazu kommen ein Detail-Durchgang und **Phase 5**
 (XP, Level, Erfolge, Segmente mit Bestzeit und Ghost). Gefahren wird bisher nur mit dem
-**Simulator**: Die Datenbuchse des E5 ist eine USB-B-Buchse an der Unterseite des Cockpits,
-und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum Laden.
+**Simulator**: Die Datenbuchse des E5 ist eine USB-B-Buchse an der Unterseite des Cockpits
+(die USB-A-Buchse oben ist nur zum Laden). Das Kabel ist da, unter Linux erscheint ein
+CP2102-Adapter als `/dev/ttyUSB0`, aber das Cockpit antwortet bisher auf keinen Befehl.
 
 | Schritt | Status |
 |---|---|
-| Phase 0: Hardwaretest E5 | ⏳ offen (USB-A-auf-B-Kabel fehlt) |
+| Phase 0: Hardwaretest E5 | ⏳ offen (Kabel da, Cockpit antwortet nicht) |
 | Phase 1: Setup, Gerätetreiber, Simulator, Debug-Seite | ✅ |
 | Phase 2: Ride-Engine (Physik, virtuelle Gänge, Zielwatt) | ✅ |
 | Phase 3: 3D-Welt Velara (Gelände, Wegenetz, Fahrer) | ✅ |
@@ -27,9 +28,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Phase 6, Schritt 2: Glutsteppe hinter der Hafenbrücke (ab Level 3) | ✅ |
 | Phase 6, Schritt 3: Tag-Nacht-Wechsel mit Fahrradlicht | ✅ |
 | Phase 6, Schritt 4: Hoher Kogel mit Serpentinen (ab Level 6) | ✅ |
-| Phase 6: weitere Gebiete (Spiegelseen, Nordkap), Wetter, Sound | ⏭ offen |
+| Phase 6, Schritt 5: Spiegelseen mit Seebrücke (ab Level 4) | ✅ |
+| Phase 6: Nordkap, Wetter, Sound | ⏭ offen |
 
-Qualität: 209 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 216 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -45,6 +47,8 @@ npm test             # Tests
 - Glutsteppe: `/?demo&edge=lange-gerade&s=150` (im Demo-Modus sind alle Gebiete offen, `&locked` zeigt die Schranke)
 - Hoher Kogel: `/?demo&edge=kogelstrasse&s=10` (Auffahrt ab Pass), `&edge=kogelstrasse&s=4380` (Kogelalm),
   `&edge=gipfelstrasse&s=2850` (Gipfel), `&edge=westrampe&s=3000` (Westrampe), Schranke: `&edge=passstrasse&s=1340&locked`
+- Spiegelseen: `/?demo&edge=seebruecke&s=40` (Seebrücke), `&edge=seeweg&s=560` (Seedorf), `&edge=obersee-n&s=300` (Obersee),
+  Schranke: `&edge=waldweg&s=440&locked`
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
 - Tageszeit: `/?demo&uhr=22&licht` (Nacht mit Fahrradlicht), `&uhr=17.6` Abendrot
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
@@ -75,14 +79,21 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - **Fortschritt** (`src/world/progression.ts`): XP-Werte in `XP`, Erfolge in `ACHIEVEMENTS`,
   Levelkurve `xpForNextLevel`. Segmente in `MVP_SEGMENTS` (`src/world/segments.ts`) als Knotenfolge.
 - **Welt** (`src/world/`): Seed `20261111`, 6 × 6 km, Gelände per Noise, Wegenetz von Hand
-  in `roadLayout.ts` (≈ 41,5 km, max. 10 %), Serpentinen am Kogel in `kogelLayout.ts`.
-- **Gebiete** (`REGIONS` in `roadLayout.ts`): Glutsteppe ab Level 3, Hoher Kogel ab Level 6.
+  in `roadLayout.ts` (≈ 51 km, max. 10 %), Serpentinen am Kogel in `kogelLayout.ts`, Spiegelseen in `seenLayout.ts`.
+- **Gebiete** (`REGIONS` in `roadLayout.ts`): Glutsteppe ab Level 3, Spiegelseen ab Level 4, Hoher Kogel ab Level 6.
+- **Seen** (`src/world/lakes.ts`): Form und Wasserhöhe je See; die Uferwege in `seenLayout.ts` wandern mit.
 
 ## Offene Punkte
 
-**Wenn das USB-Kabel da ist (Phase 0):**
-0. USB-A-auf-B-Kabel an die Buchse **unten** am Cockpit. Prüfen, ob `/dev/ttyUSB0` oder `/dev/ttyACM0`
-   erscheint (`lsusb`, `journalctl -k`), ggf. Benutzer in die Gruppe `dialout`
+**Phase 0 (Gerät antwortet nicht):**
+- Stand 13.11.: Kabel an der Buchse unten, CP2102 (`10c4:ea60`) als `/dev/ttyUSB0`, Benutzer in `dialout`.
+  Das USB-Symbol am Cockpit leuchtet erst, wenn man es bei verbundenem PC neu einschaltet.
+  Keine Antwort auf `ID`/`VE`/`CM`/`ST`/`RS`/`CD` bei 2400–115200 Baud, CR+LF/CR/LF, allen DTR/RTS-Kombinationen,
+  auch beim Treten. Einzige Daten: einmal `BD E1 E1 61 B1` beim Einschalten (bei 9600 Baud)
+- Noch nicht versucht: das Einschalt-Signal passiv bei mehreren Baudraten mitschneiden (deutet evtl. auf
+  andere Baudrate oder ein binäres Protokoll hin), Original-Software von Kettler unter Windows mitlauschen
+- Wenn es antwortet, weiter wie folgt:
+
 1. Debug-Seite → „Kettler E5 (USB)“ → Befehle `ID`, `VE`, `ST`, `RS` senden, Zielwatt über den Regler
 2. „Mitschnitt speichern“, echte ST-Zeilen nach `tests/fixtures/st-lines.e5.txt`
 3. Einheiten im Parser prüfen (Tempo ×10? Distanz in 100 m?), Antworten auf `CM`/`PW`,
@@ -102,6 +113,13 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 **Tag-Nacht-Wechsel selbst prüfen:**
 - Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
 - Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
+
+**Spiegelseen selbst prüfen:**
+- Ab Level 4 öffnet sich die Schranke am Forsthaus (Abzweig vom Waldweg zwischen Rebland und Waldrand)
+- Gefallen Seewasser, Kiesufer und Uferwiesen? Wasserfarben in `water.ts` (`uShallow`, `uDeep`, Spiegelung bei `uCalm`)
+- Gefällt die Holz-Seebrücke? (`woodenBridgeParts` in `bridges.ts`)
+- Fühlt es sich flach an? Zwischen Untersee und Spiegelsee gibt es eine kurze Rampe (≈ 6 %), am Seeweg bis 10 %
+- Zeitfahren Seerunde fahren (startet am Südende der Seebrücke)
 
 **Hoher Kogel selbst prüfen:**
 - Ab Level 6 öffnen sich die Schranken am Passweg und am Waldrand
@@ -128,12 +146,12 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 
 ## Nächster Schritt
 
-Phase 6 weiter: Wetter, Sound oder das nächste Gebiet (Spiegelseen im Nordwesten mit Seebrücke,
-oder Nordkap an der neuen Nordküste). Startprompt:
+Phase 6 weiter: Wetter, Sound oder das letzte Gebiet, das **Nordkap** (Klippen, Leuchtturm,
+wellige Küstenstraße an der Nordküste, z. B. vom Obersee über den Klippenweg erreichbar). Startprompt:
 
 ```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns das nächste Gebiet planen:
-die Spiegelseen im Nordwesten (Wald, drei Seen, Ufer-Rundweg, Seebrücke), freigeschaltet über das Level.
+Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns das Nordkap planen:
+Klippen, Leuchtturm und eine wellige Küstenstraße (3–8 %) an der Nordküste, freigeschaltet über das Level.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

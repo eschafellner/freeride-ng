@@ -4,7 +4,8 @@ import { distanceToRoad, REBLAND } from '../world/placement';
 import { mulberry32, smoothstep } from '../world/random';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
-import { kogelMask, steppeMask, townMask } from '../world/terrainGen';
+import { nearestLake, waterLevelAt } from '../world/lakes';
+import { kogelMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
 import { SCREE_LINE, TREELINE } from './terrainMesh';
 import { merged, painted } from './details';
 
@@ -184,7 +185,11 @@ export function createProps(
    * von 100 m Wasser, bleibt die Seite frei, damit Promenade und Strand offen sind.
    */
   const seaward = (x: number, z: number, dx: number, dz: number) => {
-    for (let r = 10; r <= 100; r += 10) if (terrain.sample(x + dx * r, z + dz * r) < 1) return true;
+    for (let r = 10; r <= 100; r += 10) {
+      const px = x + dx * r;
+      const pz = z + dz * r;
+      if (terrain.sample(px, pz) < waterLevelAt(px, pz) + 1) return true;
+    }
     return false;
   };
   const markt = roads.nodes.get('markt');
@@ -470,6 +475,15 @@ export function createProps(
     const z = (rng() * 2 - 1) * half * 0.98;
     const y = terrain.sample(x, z);
     if (y < 3) continue;
+    // Spiegelseen: nichts im Wasser und am Kiesufer, auf den Uferwiesen nur einzelne Bäume
+    const lk = seenMask(x, z) > 0.2 ? nearestLake(x, z) : null;
+    if (lk?.lake && lk.e < 1.6) {
+      if (lk.e < 1.1 || y < lk.lake.level + 1) continue;
+      if (lk.e < 1.3 + rng() * 0.3 && rng() < 0.85) {
+        if (rng() < 0.12 && occupied.tryTake(x, z, 1)) bushes.push({ matrix: mat(x, y - 0.1, z, rng() * 6, 0.6 + rng() * 0.7) });
+        continue;
+      }
+    }
     const slope = terrain.slope(x, z);
     const mask = roads.maskAt(terrain, x, z);
     const steppe = steppeMask(x, z);

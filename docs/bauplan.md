@@ -277,6 +277,23 @@ Offen aus dem Hohen Kogel:
 - [ ] Kehren mit Leitplanke oder Mauer an der Außenseite, Almhütte als Café/Laden (mit dem Ladensystem), Hütte nachts beleuchtet
 - [ ] Die große Karte zeigt viel Meer im Süden (die Insel sitzt nicht mittig im 6-km-Quadrat)
 
+**17.11.2026, Phase 6: Spiegelseen** (Gebiet im Nordwesten, ab Level 4):
+- Westküste im Norden nach außen verlegt (`westCoastX`), dort fällt die Hochfläche über einen bewaldeten Steilhang zum Meer ab. Rebland, Lumen und Kogel sind unverändert
+- Seen als eigenes Modul (`src/world/lakes.ts`): Becken aus gedrehten Ellipsen mit welliger Uferlinie, je See eine feste Wasserhöhe (Untersee 158 m, Spiegelsee 168 m, Obersee 176 m). `waterLevelAt` liefert Seehöhe oder Meer, das nutzen Gelände, Platzierung, Karte, Brücken und Tests
+- Gelände: sanfte Waldhochfläche (160 → 180 m nach Norden), Seebecken mit flachem Grund, Kiesufer, Uferwiesen ohne Wald (`terrainMesh.ts`), keine Bäume im Wasser (`props.ts`), Häuser bauen nicht zum See hin
+- Wasser: Der Meeres-Shader kann jetzt eine Wasserhöhe (`uLevel`) und einen ruhigen Modus (`uCalm`): kaum Wellen, dunkleres Grün-Blau, deutlichere Himmelsspiegelung, fast kein Schaum. Je See ein Gitter nur über dem Becken
+- Wege (`src/world/seenLayout.ts`, ≈ 9,7 km): Die Uferwege laufen in 45 m Abstand um die Seen, ihre Stützpunkte werden aus der Seeform berechnet. Zugang über den Seeweg am **Forsthaus**, dafür ist der Waldweg dort geteilt (`waldweg` + `waldweg-n`, gleicher Verlauf wie vorher)
+- **Seebrücke** (≈ 300 m) über die Engstelle des Spiegelsees, als Holzbrücke (`bridges.ts`: Bohlen, Geländer, Joche aus Rundholz, Laternen). Brückenenden liegen über Seen 3,5 m über dem Spiegel (`LAKE_BRIDGE_CLEARANCE`), über dem Meer wie bisher 9 m
+- Seedorf mit Häusern und Läden (Ortsschilder an drei Einfahrten), Aussichtspunkte Westbucht und Oberseeblick, 5 Kristalle (jetzt 30), Zeitfahren **Seerunde** (≈ 3 km um den Spiegelsee), Erfolg „Spiegelglatt“ (100 XP)
+- 216 Tests grün (neu: Gebiet und Schranke, Wasserhöhen und Ufer, trockene und flache Wege, Seebrücke, Seerunde)
+
+Offen aus den Spiegelseen:
+
+- [ ] Am echten Rad fahren: Ist das Gebiet angenehm flach? Kurze Rampen bis 6 % gibt es zwischen den Seen (Ostuferweg) und am Seeweg (bis 10 %, Übergang von Rebland)
+- [ ] Wasserfarbe der Seen am echten Bildschirm prüfen (`uShallow`/`uDeep` und Spiegelung in `water.ts`), headless nur mit Software-Rendering geprüft
+- [ ] Optional: Forsthaus als Gebäude, Bootssteg mit Ruderbooten in Seedorf, Schilf am Ufer, Spiegelung der Bäume im Wasser
+- [ ] Das Wegenetz ist kürzer als im Weltentwurf geplant (9,7 statt 15 km); bei Bedarf eine Verbindung zum Nordkap
+
 **13.11.2026, Phase 6: Tag-Nacht-Wechsel** (Vorgaben aus dem Gespräch):
 - Im Grafikmenü wählbar: **Tag-Nacht-Zyklus** (Standard) oder **Immer Tag** (sieht aus wie vorher)
 - Ein Tag dauert 30 Minuten: 18 Minuten Tag, 12 Minuten Nacht. Die Nacht beginnt mit 1 Minute Abenddämmerung und endet mit 1 Minute Morgendämmerung. Auf der Uhr im HUD: Sonnenaufgang 6:00, Sonnenuntergang 18:00. Die Zeit läuft nur während der Fahrt (nicht in Pause und Menü), jede Sitzung beginnt am Vormittag
@@ -304,7 +321,8 @@ Offen aus Phase 6 (bisher):
 - [ ] Tag-Nacht-Wechsel am echten Bildschirm prüfen: Ist die Nacht hell genug (Stufe 6)? Leuchten Fenster und Laternen passend? Werte in `PALETTE` und `houseGlow` (`houses.ts`)
 - [ ] Optional: Lichtkegel der Laternen auf dem Boden, Mond mit Struktur
 - [x] Passweg zum Hohen Kogel (siehe unten)
-- [ ] Weitere Gebiete: Spiegelseen, Nordkap
+- [x] Spiegelseen (siehe oben)
+- [ ] Weitere Gebiete: Nordkap
 
 **13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**
 - Oberflächen im Shader statt Bilddateien (`houseMaterial()` in `houses.ts`, Attribut `surf`): Putz mit Struktur und Flecken, Regenspuren unter der Traufe, Schmutz und Spritzwasser am Sockel, an manchen Häusern abgeplatzter Putz mit Ziegeln darunter. Dazu Dachziegel in versetzten Reihen mit Moos auf der Nordseite, Steinquader (Sockel, Fensterbänke, Eckquader), Holzbretter (Türen, Läden, Scheunen), Fachwerk mit Streben und Glas mit Himmelsspiegelung. Feine Muster blenden in der Ferne aus (gegen Flimmern)

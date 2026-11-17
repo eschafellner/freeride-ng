@@ -36,7 +36,7 @@ export const POI_RADIUS: Record<PoiType, number> = {
 const c = (id: string, edgeId: string, t: number): PoiDef => ({ id, type: 'collectible', edgeId, t });
 const sign = (id: string, name: string, edgeId: string, t: number): PoiDef => ({ id, type: 'sign', name, edgeId, t });
 
-/** 15 Sammelobjekte in Lumen und Rebland, je 5 in Glutsteppe und am Kogel, bevorzugt abseits der Hauptrunde. */
+/** 15 Sammelobjekte in Lumen und Rebland, je 5 in Glutsteppe, am Kogel und an den Spiegelseen, bevorzugt abseits der Hauptrunde. */
 export const MVP_POIS: PoiDef[] = [
   c('k01', 'prom-w', 0.5),
   c('k02', 'westhafen', 0.6),
@@ -92,6 +92,18 @@ export const MVP_POIS: PoiDef[] = [
   c('k25', 'westrampe', 0.75),
   { id: 'v-kogelalm', type: 'viewpoint', name: 'Kogelalm', nodeId: 'kogelalm' },
   { id: 'v-kogel', type: 'viewpoint', name: 'Hoher Kogel', nodeId: 'gipfel' },
+
+  // Spiegelseen (ab Level 4)
+  c('k26', 'unterseeweg', 0.5),
+  c('k27', 'waldstrasse', 0.7),
+  c('k28', 'nordufer-o', 0.45),
+  c('k29', 'obersee-nw', 0.5),
+  c('k30', 'klippenweg', 0.45),
+  { id: 'v-westbucht', type: 'viewpoint', name: 'Westbucht', nodeId: 'westbucht' },
+  { id: 'v-oberseeblick', type: 'viewpoint', name: 'Oberseeblick', nodeId: 'oberseeblick' },
+  sign('s-seedorf-s', 'Seedorf', 'seeweg', 0.82),
+  sign('s-seedorf-o', 'Seedorf', 'unterseeweg', 0.14),
+  sign('s-seedorf-w', 'Seedorf', 'waldstrasse', 0.12),
 ];
 
 export function resolvePois(net: RoadNetwork, defs: PoiDef[] = MVP_POIS): Poi[] {

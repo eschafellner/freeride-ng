@@ -110,9 +110,9 @@ describe('POIs', () => {
     }
   });
 
-  it('IDs sind eindeutig, 25 Sammelobjekte (15 + je 5 in Glutsteppe und am Kogel)', () => {
+  it('IDs sind eindeutig, 30 Sammelobjekte (15 + je 5 in Glutsteppe, am Kogel und an den Spiegelseen)', () => {
     expect(new Set(pois.map((p) => p.id)).size).toBe(pois.length);
-    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(25);
+    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(30);
   });
 
   it('jedes Sammelobjekt ist mit dem Fahrer erreichbar', () => {
@@ -138,7 +138,7 @@ describe('GameProgress', () => {
   it('sammelt einmal ein', () => {
     const g = new GameProgress(pois);
     const ev = g.update(k01, 0);
-    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 25 })]);
+    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 30 })]);
     expect(g.update(k01, 1)).toEqual([]);
   });
 

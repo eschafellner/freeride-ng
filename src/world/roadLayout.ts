@@ -1,4 +1,5 @@
 import { KOGEL_EDGES, KOGEL_NODES } from './kogelLayout';
+import { FORSTHAUS, SEEN_EDGES, SEEN_NODES } from './seenLayout';
 
 /**
  * Wegenetz des MVP-Ausschnitts (Lumen + Rebland), siehe docs/welt.md.
@@ -39,6 +40,7 @@ export interface RegionDef {
 
 export const REGIONS: RegionDef[] = [
   { id: 'glutsteppe', name: 'Glutsteppe', unlockLevel: 3, gateNodes: ['bruecke'], via: 'über die Hafenbrücke' },
+  { id: 'seen', name: 'Spiegelseen', unlockLevel: 4, gateNodes: ['forsthaus'], via: 'über den Seeweg am Forsthaus' },
   { id: 'kogel', name: 'Hoher Kogel', unlockLevel: 6, gateNodes: ['pass', 'waldrand'], via: 'über den Passweg und am Waldrand' },
 ];
 
@@ -96,6 +98,9 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'plateau', x: 2040, z: -1210, name: 'Glutplateau', region: 'glutsteppe' },
     // Hoher Kogel (hinter dem Passweg, ab Level 6), Serpentinen in kogelLayout.ts
     ...KOGEL_NODES,
+    // Spiegelseen (Nordwesten, ab Level 4), Wege in seenLayout.ts
+    FORSTHAUS,
+    ...SEEN_NODES,
   ],
   edges: [
     // Promenade
@@ -138,7 +143,8 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'strand-n', from: 'strand', to: 'weinW', via: [[-1080, 760], [-1200, 600]] },
     { id: 'kammweg', from: 'ostweg', to: 'aussicht', via: [[1150, -100], [1050, -320]], name: 'Kammweg' },
     { id: 'aussicht-w', from: 'aussicht', to: 'hangdorf', via: [[550, -560], [200, -480]] },
-    { id: 'waldweg', from: 'weinN', to: 'waldrand', via: [[-1250, -700], [-1150, -1000]], name: 'Waldweg' },
+    { id: 'waldweg', from: 'weinN', to: 'forsthaus', via: [[-1123, -392], [-1194, -536]], name: 'Waldweg' },
+    { id: 'waldweg-n', from: 'forsthaus', to: 'waldrand', via: [[-1234, -844], [-1160, -985]], name: 'Waldweg' },
     { id: 'waldrand-o', from: 'waldrand', to: 'pass', via: [[-650, -1250], [-350, -1300]] },
     // Glutsteppe
     { id: 'hafenbruecke', from: 'bruecke', to: 'brueckenkopf', via: [[1480, 915]], name: 'Hafenbrücke', surface: 'bridge', region: 'glutsteppe' },
@@ -162,5 +168,6 @@ export const MVP_LAYOUT: RoadLayout = {
     // Richtung Kogel
     { id: 'passstrasse', from: 'hangdorf', to: 'pass', via: [[-40, -700], [-260, -930], [60, -1150]], name: 'Passstraße' },
     ...KOGEL_EDGES,
+    ...SEEN_EDGES,
   ],
 };

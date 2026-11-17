@@ -1,5 +1,6 @@
 import type { FogGrid } from '../world/exploration';
 import type { Heightfield } from '../world/heightfield';
+import { waterLevelAt } from '../world/lakes';
 import type { Poi } from '../world/pois';
 import type { RoadNetwork } from '../world/roadNetwork';
 
@@ -189,10 +190,11 @@ function renderBase(terrain: Heightfield, roads: RoadNetwork): HTMLCanvasElement
       const dz = terrain.sample(wx, z + mPerPx) - terrain.sample(wx, z - mPerPx);
       const shade = Math.max(0.6, Math.min(1.25, 1 - (dx + dz) * 0.06));
       let r: number, g: number, b: number;
-      if (h < 0) {
-        const deep = Math.min(1, -h / 10);
+      const wl = waterLevelAt(wx, z);
+      if (h < wl) {
+        const deep = Math.min(1, (wl - h) / 10);
         [r, g, b] = [96 - 40 * deep, 160 - 50 * deep, 215 - 30 * deep];
-      } else if (h < 2.5) [r, g, b] = [226, 207, 154];
+      } else if (h < 2.5 || (wl > 0 && h < wl + 0.9)) [r, g, b] = [226, 207, 154];
       else {
         const t = Math.min(1, h / 220);
         [r, g, b] = [130 - 40 * t, 182 - 40 * t, 90 - 25 * t];

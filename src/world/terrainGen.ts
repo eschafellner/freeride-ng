@@ -1,5 +1,6 @@
 import { createNoise2D } from 'simplex-noise';
 import { Heightfield } from './heightfield';
+import { lakeBasinHeight, lakeBasinWeight, nearestLake } from './lakes';
 import { clamp, lerp, mulberry32, smoothstep } from './random';
 
 /**
@@ -98,6 +99,27 @@ function kogelHeight(x: number, z: number, noise: (x: number, z: number) => numb
   const p = kogelProfile((d * wobble) / KOGEL.foot);
   const crag = 10 * noise(x / 140, z / 140) * Math.min(p, 1 - p) * 2;
   return (KOGEL.h * p + crag) * fade;
+}
+
+// --- Spiegelseen (Nordwesten, hinter dem Forsthaus) ---------------------------------
+
+/** Gebiet der Spiegelseen (weich ausgeblendet), Seen in `lakes.ts`. */
+export const SEENLAND = { x0: -2800, x1: -1250, z0: -2800, z1: -860, fade: 220 } as const;
+
+/** 1 im Seengebiet, 0 außerhalb. */
+export function seenMask(x: number, z: number): number {
+  const { x0, x1, z0, z1, fade } = SEENLAND;
+  const mx = smoothstep(x0 - fade, x0, x) * (1 - smoothstep(x1, x1 + fade, x));
+  const mz = smoothstep(z0 - fade, z0, z) * (1 - smoothstep(z1, z1 + fade, z));
+  return mx * mz;
+}
+
+/**
+ * Westküste: bei Rebland wie bisher, im Norden weiter draußen, damit Platz für die
+ * Seen bleibt (ohne Wellung).
+ */
+export function westCoastX(z: number): number {
+  return -1760 - 960 * smoothstep(-380, -1100, z);
 }
 
 /** 1 in der Glutsteppe, 0 westlich der Bucht. */
@@ -206,10 +228,23 @@ export function generateTerrain({ seed, size = MVP_SIZE_M, res = MVP_RES }: Terr
       // Hoher Kogel im Norden
       h += kogelHeight(x, z, coastNoise);
 
+      // Spiegelseen: sanfte Waldhochfläche, nach Norden leicht ansteigend, mit Seebecken.
+      // Zum Ufer hin werden die Kuppen flacher, damit kein Wall um die Seen entsteht.
+      const seen = seenMask(x, z);
+      if (seen > 0) {
+        const { lake, e } = nearestLake(x, z);
+        const knolls = 9 * fbm(x / 650 + 7.3, z / 650 - 2.1, 2) * smoothstep(1.3, 2.6, e);
+        const plateau = 160 + 20 * smoothstep(-900, -2600, z) + knolls + 0.6 * detailNoise(x / 60, z / 60);
+        h = lerp(h, plateau, seen);
+        if (lake) h = lerp(h, lakeBasinHeight(lake, e), lakeBasinWeight(e) * seen);
+      }
+
       // Meer: Südküste, dazu West- und Ostküste der Insel und die Bucht vor der Glutsteppe
-      const westD = x - (-1760 + 60 * coastNoise(0.81, z / 500));
+      const westD = x - (westCoastX(z) + 60 * coastNoise(0.81, z / 500));
       const eastD = 2260 + 70 * coastNoise(0.23, z / 450) - x;
       const northD = z - (NORTH_COAST_Z + 55 * coastNoise(x / 520, 0.61));
+      // Im Nordwesten fällt die Hochfläche über einen breiten Steilhang zum Meer ab
+      if (seen > 0) h -= Math.max(0, h - 30) * (1 - smoothstep(0, 210, westD)) ** 1.4 * seen;
       const coast = Math.min(d, westD, eastD, northD);
       h = lerp(h, SEA_LEVEL - 10, smoothstep(40, -80, coast));
       h = lerp(h, SEA_LEVEL - 9, bayMask(x, z, 18 * coastNoise(0.5, z / 300)));
