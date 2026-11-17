@@ -21,7 +21,7 @@ Vor jedem Commit: `npm run typecheck && npm run lint && npm test`.
 ## Tech-Stack
 
 TypeScript (strict), Vite, Vitest, ESLint. Kein Backend. UI: Vanilla TS.
-Three.js (Low-Poly, Modelle aus Grundkörpern), `simplex-noise` für das Gelände. Speicher: IndexedDB (`idb`).
+Three.js (Low-Poly, Modelle aus Grundkörpern), `simplex-noise` für das Gelände. Speicher: IndexedDB (`idb`): Spielstand und Fahrten-Historie.
 Gerät: Web Serial API (nur Chrome/Edge am Desktop).
 
 ## Ordnerstruktur
@@ -52,8 +52,9 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `saveGame.ts` – Spielstand-Format und Prüfung (`sanitizeSave`)
   - `shops.ts` – Verteilung von Läden, Cafés und Restaurants nach Lage (`assignShops`)
   - `placement.ts` – Platzierung von Details (Weinberge, Objekte am Wegrand, Felder, `distanceToRoad`)
+- `src/history/` – Fahrten-Historie, reines TS (testbar): `rideLog.ts` Aufzeichnung und Zusammenfassung, `tcx.ts` und `fit.ts` Export
 - `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD,
-  Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`),
+  Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, Fahrten-Historie (`historyPanel.ts`), POI-Objekte, IndexedDB (`storage.ts`),
   Details (`props.ts` Platzierung/Vegetation, `houses.ts` Hausvarianten und Wege zur Tür, `shopFronts.ts` Ladenfronten, `details.ts` Wegrand/Weinberge,
   `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Stein- und Holzbrücken, `mountain.ts` Almhütte/Gipfelkreuz/Kehrenschilder), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
   `grass.ts`, `water.ts` (Meer und Seen), `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen),

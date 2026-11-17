@@ -88,6 +88,7 @@
         <button id="start-kettler">Mit Kettler E5 fahren (USB)</button>
       </div>
       <button id="open-graphics" class="link graphics-link">Grafik-Einstellungen <kbd>G</kbd></button>
+      <button id="open-history" class="link graphics-link">Fahrten-Historie und Export (TCX/FIT)</button>
       <p id="serial-hint" class="hint" hidden>
         Web Serial nicht verfügbar: Chrome oder Edge am Desktop über <code>localhost</code> nutzen.
       </p>
@@ -111,7 +112,11 @@
       <p id="paused-text">Widerstand ist auf dem Minimum.</p>
       <button id="resume" class="primary">Weiterfahren <kbd>P</kbd></button>
       <button id="pause-graphics" class="link graphics-link">Grafik-Einstellungen <kbd>G</kbd></button>
+      <button id="end-ride" class="end-ride">Fahrt beenden</button>
     </div>
+
+    <div id="ride-done" class="panel small ride-done" hidden></div>
+    <div id="history" class="panel history" hidden></div>
 
     <div id="graphics" class="panel graphics" hidden></div>
 

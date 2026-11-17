@@ -375,3 +375,26 @@ button.graphics-link { display: block; margin: 12px auto 0; font-size: 0.9rem; }
 .hud-radcomputer .xpbar i { background: var(--lcd-ink); opacity: 0.55; }
 .hud-radcomputer .xpbar small { color: var(--lcd-ink); text-shadow: none; }
 .hud-radcomputer .road-name { font-family: ui-monospace, 'DejaVu Sans Mono', monospace; }
+
+/* --- Fahrten-Historie ------------------------------------------------------------------ */
+button.end-ride { display: block; margin: 16px auto 0; font-size: 0.9rem; }
+.panel.history { width: min(620px, calc(100% - 32px)); max-height: calc(100vh - 48px); overflow-y: auto; }
+.history-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ride-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ride { background: rgba(255, 255, 255, 0.05); border-radius: 10px; padding: 10px 12px; }
+.ride-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.ride-place { color: var(--hud-muted); }
+.ride-badge { font-size: 0.72rem; padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); color: var(--hud-muted); margin-left: 6px; }
+.ride-badge.live { background: #2f7d4f; color: #fff; }
+.ride-stats { color: var(--hud-muted); font-size: 0.88rem; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.ride-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ride-actions button { padding: 5px 12px; font-size: 0.85rem; }
+.ride-actions button.link { padding: 0; margin-left: auto; }
+button.link.danger { color: #ff9b8f; }
+.ride-done { text-align: left; }
+.ride-done h2 { text-align: center; }
+.ride-done .sub { text-align: center; }
+.ride-done .ride-actions { justify-content: center; margin: 14px 0; }
+.ride-facts { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 0; font-variant-numeric: tabular-nums; }
+.ride-facts dt { color: var(--hud-muted); }
+.ride-facts dd { margin: 0; text-align: right; font-weight: 600; }

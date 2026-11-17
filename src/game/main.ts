@@ -36,7 +36,9 @@ import { createPaving } from './paving';
 import { loadSettings, storeSettings } from './quality';
 import { createScene, driftClouds, followSun } from './scene';
 import { addMaskLines, addMaskPolygons, createTerrainUniforms, PLAZAS } from './shaderChunks';
-import { deleteSave, loadSave, writeSave } from './storage';
+import { deleteSave, loadSave, writeRide, writeSave } from './storage';
+import { HistoryPanel, showRideDone } from './historyPanel';
+import { RideRecorder } from '../history/rideLog';
 import { createTerrainMesh } from './terrainMesh';
 import { createBridges } from './bridges';
 import { formatClock, timeForClock } from './dayCycle';
@@ -252,6 +254,23 @@ async function main() {
     if (!session || demo) return;
     dirty = false;
     void writeSave(snapshot());
+    // Laufende Fahrt in die Historie (gleiche ID, wird jedes Mal ersetzt)
+    if (recorder?.worthKeeping()) void writeRide(recorder.meta(), recorder.track);
+  }
+
+  /** Name des nächsten benannten Orts (für die Fahrtenliste). */
+  function nearestPlace(): string | undefined {
+    let best: string | undefined;
+    let bestD = Infinity;
+    for (const n of world.roads.nodes.values()) {
+      if (!n.name) continue;
+      const d = Math.hypot(n.x - rider.position.x, n.z - rider.position.z);
+      if (d < bestD) {
+        bestD = d;
+        best = n.name;
+      }
+    }
+    return best;
   }
 
   if (save) {
@@ -271,6 +290,9 @@ async function main() {
 
   let device: TrainerDevice | null = null;
   let session: RideSession | null = null;
+  /** Aufzeichnung der laufenden Fahrt für die Historie (TCX/FIT). */
+  let recorder: RideRecorder | null = null;
+  let rideEnded = false;
   let cleanup: Unsubscribe[] = [];
   let lastDistance = engine.state().distance;
 
@@ -321,6 +343,7 @@ async function main() {
     $('tp-sim').hidden = kind !== 'mock';
     session = new RideSession(engine, device, { gradeProvider: () => rider.grade });
     session.start();
+    recorder = new RideRecorder(Date.now(), kind === 'mock' ? 'simulator' : 'kettler', nearestPlace());
     lastDistance = engine.state().distance;
     menu.hidden = true;
     estopBtn.hidden = false;
@@ -345,6 +368,50 @@ async function main() {
     session.resume();
     pausedPanel.hidden = true;
   }
+
+  // --- Fahrt beenden und Historie ------------------------------------------------------
+
+  const rideDone = $('ride-done');
+  const history = new HistoryPanel($('history'), () => {
+    if (rideEnded) rideDone.hidden = false;
+    else menu.hidden = false;
+  }, () => (session ? (recorder?.id ?? null) : null));
+
+  /** Fahrt beenden: Widerstand aufs Minimum, speichern, Gerät trennen, Zusammenfassung zeigen. */
+  async function endRide() {
+    if (!session) return;
+    session.pause();
+    saveNow();
+    session.stop();
+    session = null;
+    rideEnded = true;
+    pausedPanel.hidden = true;
+    estopBtn.hidden = true;
+    testPanel.hidden = true;
+    try {
+      await device?.disconnect();
+    } catch (err) {
+      console.warn('Trennen fehlgeschlagen', err);
+    }
+    for (const fn of cleanup) fn();
+    cleanup = [];
+    statusEl.hidden = true; // „Gerät getrennt“ ist hier gewollt
+    const keep = recorder?.worthKeeping() ? recorder : null;
+    showRideDone(rideDone, keep?.meta() ?? null, keep?.track ?? null, !demo, {
+      menu: () => location.reload(),
+      history: () => {
+        rideDone.hidden = true;
+        void history.open();
+      },
+    });
+  }
+  $('end-ride').addEventListener('click', () => {
+    if (confirm('Fahrt beenden? Sie wird in der Historie gespeichert.')) void endRide();
+  });
+  $('open-history').addEventListener('click', () => {
+    menu.hidden = true;
+    void history.open();
+  });
 
   function emergencyStop() {
     device?.emergencyStop();
@@ -807,6 +874,7 @@ async function main() {
     driftClouds(bundle.clouds, dt);
 
     if (session && !session.isPaused) {
+      recorder?.sample(Date.now(), state, riderPos.y);
       if (fog.reveal(riderPos.x, riderPos.z, REVEAL_RADIUS) > 0) dirty = true;
       for (const ev of progress.update(rider.position, state.timeSec)) onProgress(ev);
       tracker.update(state.timeSec, state.distance);

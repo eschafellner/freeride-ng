@@ -277,6 +277,21 @@ Offen aus dem Hohen Kogel:
 - [ ] Kehren mit Leitplanke oder Mauer an der Außenseite, Almhütte als Café/Laden (mit dem Ladensystem), Hütte nachts beleuchtet
 - [ ] Die große Karte zeigt viel Meer im Süden (die Insel sitzt nicht mittig im 6-km-Quadrat)
 
+**17.11.2026, Phase 7 begonnen: Fahrten-Historie und Export:**
+- Aufzeichnung (`src/history/rideLog.ts`, `RideRecorder`): ein Messpunkt pro Sekunde Fahrzeit mit Uhrzeit, Fahrzeit, Strecke, Tempo, Leistung, Trittfrequenz, Puls und Höhe. Pausen bleiben als Lücke in der Uhrzeit, die Fahrzeit läuft dann nicht weiter. Zusammenfassung mit Ø/max. Leistung, Tempo, Kadenz, Puls, Höhenmetern und Arbeit (kJ)
+- Gespeichert wird jede Fahrt ab 1 Minute und 100 m, zusammen mit dem Spielstand (Autosave alle 10 s, Pause, Seitenende). IndexedDB Version 2 mit zwei neuen Tabellen: `rides` (Liste) und `rideTracks` (Messpunkte). „Neu beginnen“ löscht nur den Spielstand, nicht die Historie. Im Demo-Modus wird nichts gespeichert
+- **TCX** (`tcx.ts`): eine Runde, Leistung und Tempo in der ActivityExtension, gegen das offizielle Garmin-Schema (TrainingCenterDatabasev2.xsd) geprüft
+- **FIT** (`fit.ts`): eigener Encoder ohne Bibliothek (file_id, Timer-Start/Stopp an Pausen, record, lap, session als Radfahren/virtuell, activity, CRC). Mit dem Python-Parser `fitdecode` samt CRC-Prüfung gegengelesen
+- Ohne GPS-Position: Strava, Garmin Connect & Co. zeigen die Fahrt als virtuelle Indoor-Fahrt
+- UI (`historyPanel.ts`): Startmenü → „Fahrten-Historie und Export“ (Liste mit Datum, Startort, Kennzahlen, TCX/FIT/Löschen), Pausenmenü → „Fahrt beenden“ (Widerstand aufs Minimum, speichern, Gerät trennen, Zusammenfassung mit Export)
+- 230 Tests grün (neu: Aufzeichnung, Pausen, TCX wohlgeformt, FIT mit eigenem Leser: Kopf, CRC, Felder)
+
+Offen aus der Fahrten-Historie:
+
+- [ ] Hochladen bei Strava/Garmin Connect selbst ausprobieren
+- [ ] Optional: GPS-Spur auf einer echten Karte (Velara auf feste Koordinaten abbilden), Detailansicht mit Leistungs- und Höhenkurve, Export als CSV
+- [ ] Die Werte aus dem Simulator sind gespielt; mit dem echten E5 erst nach Phase 0 aussagekräftig
+
 **17.11.2026, Phase 6: Spiegelseen** (Gebiet im Nordwesten, ab Level 4):
 - Westküste im Norden nach außen verlegt (`westCoastX`), dort fällt die Hochfläche über einen bewaldeten Steilhang zum Meer ab. Rebland, Lumen und Kogel sind unverändert
 - Seen als eigenes Modul (`src/world/lakes.ts`): Becken aus gedrehten Ellipsen mit welliger Uferlinie, je See eine feste Wasserhöhe (Untersee 158 m, Spiegelsee 168 m, Obersee 176 m). `waterLevelAt` liefert Seehöhe oder Meer, das nutzen Gelände, Platzierung, Karte, Brücken und Tests

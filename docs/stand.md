@@ -30,8 +30,10 @@ CP2102-Adapter als `/dev/ttyUSB0`, aber das Cockpit antwortet bisher auf keinen 
 | Phase 6, Schritt 4: Hoher Kogel mit Serpentinen (ab Level 6) | ✅ |
 | Phase 6, Schritt 5: Spiegelseen mit Seebrücke (ab Level 4) | ✅ |
 | Phase 6: Nordkap, Wetter, Sound | ⏭ offen |
+| Phase 7, Schritt 1: Fahrten-Historie, Export als TCX und FIT | ✅ |
+| Phase 7: Workouts (ERG, `.zwo`) | ⏭ offen (erst nach Phase 0 sinnvoll) |
 
-Qualität: 216 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 230 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -50,6 +52,8 @@ npm test             # Tests
 - Spiegelseen: `/?demo&edge=seebruecke&s=40` (Seebrücke), `&edge=seeweg&s=560` (Seedorf), `&edge=obersee-n&s=300` (Obersee),
   Schranke: `&edge=waldweg&s=440&locked`
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
+- Fahrten: Startmenü → „Fahrten-Historie“, „Fahrt beenden“ im Pausenmenü. Im Demo-Modus wird nichts gespeichert,
+  der Export am Ende einer Fahrt geht trotzdem
 - Tageszeit: `/?demo&uhr=22&licht` (Nacht mit Fahrradlicht), `&uhr=17.6` Abendrot
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
 
@@ -99,6 +103,11 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 3. Einheiten im Parser prüfen (Tempo ×10? Distanz in 100 m?), Antworten auf `CM`/`PW`,
    Watt-Grenzen und Schrittweite in `DEFAULT_POWER_LIMITS`
 4. Dann im Spiel fahren und mit der Testanzeige (`T`) das Fahrgefühl prüfen
+
+**Fahrten-Historie selbst prüfen:**
+- Eine Fahrt (ab 1 Minute) fahren, in der Pause „Fahrt beenden“: Zusammenfassung mit TCX/FIT
+- Startmenü → „Fahrten-Historie und Export“: Liste, Export, Löschen
+- Eine FIT-Datei bei Strava oder Garmin Connect hochladen (erscheint als virtuelle Radfahrt ohne Karte)
 
 **Selbst im Browser prüfen:**
 - Speichern und Laden (fahren, Seite neu laden: gleiche Stelle, Kristalle noch da?)
