@@ -3,8 +3,11 @@ import { Heightfield } from '../src/world/heightfield';
 import { RiderOnNetwork, type ExitChooser } from '../src/world/rider';
 import type { RoadLayout } from '../src/world/roadLayout';
 import { buildRoadNetwork, splinePath } from '../src/world/roadNetwork';
-import { generateTerrain } from '../src/world/terrainGen';
-import { createWorld } from '../src/world/world';
+import { generateTerrain, KOGEL, kogelMask, kogelProfile } from '../src/world/terrainGen';
+import { createWorld, DEFAULT_SEED } from '../src/world/world';
+import { REGIONS } from '../src/world/roadLayout';
+import { MVP_SEGMENTS, resolveSegments } from '../src/world/segments';
+import { findHairpins } from '../src/game/mountain';
 
 const world = createWorld();
 
@@ -60,7 +63,7 @@ describe('Wegenetz (MVP, Standard-Seed)', () => {
 
   it('hat ungefähr die geplante Länge', () => {
     expect(roads.totalLength).toBeGreaterThan(17000);
-    expect(roads.totalLength).toBeLessThan(30000);
+    expect(roads.totalLength).toBeLessThan(45000);
   });
 
   it('überschreitet nirgends 10 % Steigung', () => {
@@ -243,5 +246,76 @@ describe('Gesperrte Gebiete', () => {
     const r = new RiderOnNetwork(roads, 'brueckenweg', 0, 1);
     r.advance(roads.edge('brueckenweg').length + 5);
     expect(r.edge.id).toBe('hafenbruecke');
+  });
+});
+
+describe('Hoher Kogel', () => {
+  const world = createWorld();
+  const roads = world.roads;
+  const raw = generateTerrain({ seed: DEFAULT_SEED });
+
+  it('der Gipfel ist rund 700 m hoch, im Norden liegt Meer', () => {
+    expect(raw.sample(KOGEL.x, KOGEL.z)).toBeGreaterThan(660);
+    expect(raw.sample(KOGEL.x, KOGEL.z)).toBeLessThan(730);
+    expect(raw.sample(0, -2990)).toBeLessThan(0);
+  });
+
+  it('läuft vor dem Passweg aus: Rebland und Passstraße bleiben unverändert', () => {
+    for (const id of ['pass', 'waldrand', 'hangdorf', 'kapelle', 'weinN']) {
+      const n = roads.node(id);
+      expect(kogelMask(n.x, n.z)).toBeLessThan(0.001); // < 0,5 m
+    }
+    expect(kogelProfile(0)).toBe(1);
+    expect(kogelProfile(1)).toBe(0);
+  });
+
+  it('ist ein eigenes Gebiet ab Level 6 mit zwei Zugängen', () => {
+    const r = REGIONS.find((x) => x.id === 'kogel')!;
+    expect(r.unlockLevel).toBe(6);
+    for (const g of r.gateNodes) {
+      expect(roads.node(g).gate).toBe(true);
+      expect(roads.node(g).edges.some((id) => roads.edge(id).region === 'kogel')).toBe(true);
+    }
+    for (const id of ['kogelstrasse', 'gipfelstrasse', 'westrampe']) expect(roads.edge(id).region).toBe('kogel');
+  });
+
+  it('beide Auffahrten sind lang und im Mittel mäßig steil', () => {
+    const top = roads.node('gipfel');
+    expect(top.y).toBeGreaterThan(650);
+    const [kogel, west] = resolveSegments(roads, MVP_SEGMENTS.filter((s) => s.id.startsWith('climb-') && s.id !== 'climb-kapelle'));
+    for (const seg of [kogel!, west!]) {
+      expect(seg.length).toBeGreaterThan(6500);
+      expect(seg.length).toBeLessThan(9000);
+      expect(seg.climb).toBeGreaterThan(450);
+      const avg = (top.y - seg.legs[0]!.edge.heightAt(seg.legs[0]!.dir === 1 ? 0 : seg.legs[0]!.edge.length)) / seg.length;
+      expect(avg).toBeGreaterThan(0.055);
+      expect(avg).toBeLessThan(0.085);
+    }
+  });
+
+  it('die Serpentinen haben Kehren', () => {
+    const up = [...findHairpins(roads.edge('kogelstrasse')), ...findHairpins(roads.edge('gipfelstrasse'))];
+    expect(up.length).toBeGreaterThanOrEqual(8);
+    expect(findHairpins(roads.edge('westrampe')).length).toBeGreaterThanOrEqual(8);
+    // Eine Gerade hat keine
+    expect(findHairpins(roads.edge('lange-gerade'))).toHaveLength(0);
+  });
+
+  it('in den Kehren sticht das Gelände nicht durch die Fahrbahn', () => {
+    for (const id of ['kogelstrasse', 'gipfelstrasse', 'westrampe']) {
+      const e = roads.edge(id);
+      for (let s = 0; s < e.length; s += 3) {
+        const p = e.pointAt(s);
+        expect(world.terrain.meshHeight(p.x, p.z)).toBeLessThan(p.y + 0.12);
+      }
+    }
+  });
+
+  it('gesperrt kehrt man am Waldrand nicht in die Westrampe ab', () => {
+    roads.lockedRegions.add('kogel');
+    const r = new RiderOnNetwork(roads, 'waldweg', 0, 1);
+    expect(r.upcomingExits().some((x) => x.edge.id === 'westrampe')).toBe(false);
+    roads.lockedRegions.delete('kogel');
+    expect(r.upcomingExits().some((x) => x.edge.id === 'westrampe')).toBe(true);
   });
 });

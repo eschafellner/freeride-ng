@@ -76,6 +76,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'seg-climb', name: 'Bergwertung', text: 'Den Kapellenanstieg bezwungen', xp: 75, test: runs('climb-kapelle') },
   { id: 'seg-tt', name: 'Gegen die Uhr', text: 'Das Zeitfahren Weinbergrunde beendet', xp: 75, test: runs('tt-weinberg') },
   { id: 'climb-5', name: 'Stammgast an der Kapelle', text: 'Den Kapellenanstieg 5-mal gefahren', xp: 150, test: runs('climb-kapelle', 5) },
+  { id: 'seg-kogel', name: 'Gipfelsieg', text: 'Die Bergwertung Hoher Kogel bezwungen', xp: 150, test: runs('climb-kogel') },
+  { id: 'seg-westrampe', name: 'Die harte Seite', text: 'Die Westrampe zum Gipfel bezwungen', xp: 150, test: runs('climb-westrampe') },
   {
     id: 'pb-1', name: 'Schneller als gestern', text: 'Eine eigene Bestzeit verbessert', xp: 75,
     test: (s) => [...s.segments.values()].some((r) => r.improvements > 0),

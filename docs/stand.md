@@ -1,4 +1,4 @@
-# Stand: Freeride NG (Ende 13.11.2026)
+# Stand: Freeride NG (16.11.2026)
 
 Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 „Stand & offene Punkte“), die Welt in `docs/welt.md`, Arbeitsregeln in `CLAUDE.md`.
@@ -26,9 +26,10 @@ und das passende USB-A-auf-B-Kabel fehlt noch. Die USB-A-Buchse oben ist nur zum
 | Phase 6, Schritt 1: Performance (Detailstufen, Kacheln) | ✅ |
 | Phase 6, Schritt 2: Glutsteppe hinter der Hafenbrücke (ab Level 3) | ✅ |
 | Phase 6, Schritt 3: Tag-Nacht-Wechsel mit Fahrradlicht | ✅ |
-| Phase 6: weitere Gebiete (Passweg/Kogel, Spiegelseen, Nordkap), Wetter, Sound | ⏭ offen |
+| Phase 6, Schritt 4: Hoher Kogel mit Serpentinen (ab Level 6) | ✅ |
+| Phase 6: weitere Gebiete (Spiegelseen, Nordkap), Wetter, Sound | ⏭ offen |
 
-Qualität: 201 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 209 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -42,6 +43,8 @@ npm test             # Tests
 - Schnelltest ohne Menü: `/?demo` (speichert nie), z.B. `/?demo&edge=weinberg-s&s=120`
 - Grafik: Taste `G` oder per `&quality=niedrig|mittel|hoch`, feste Kamera mit `&cam=x,y,z,zielX,zielY,zielZ`
 - Glutsteppe: `/?demo&edge=lange-gerade&s=150` (im Demo-Modus sind alle Gebiete offen, `&locked` zeigt die Schranke)
+- Hoher Kogel: `/?demo&edge=kogelstrasse&s=10` (Auffahrt ab Pass), `&edge=kogelstrasse&s=4380` (Kogelalm),
+  `&edge=gipfelstrasse&s=2850` (Gipfel), `&edge=westrampe&s=3000` (Westrampe), Schranke: `&edge=passstrasse&s=1340&locked`
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
 - Tageszeit: `/?demo&uhr=22&licht` (Nacht mit Fahrradlicht), `&uhr=17.6` Abendrot
 - Segment testen: `/?demo&edge=prom-w&s=600&cadence=110` (Sprintzone startet nach ~50 m)
@@ -71,8 +74,9 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
   max. +20 W/s. Pause, Tab-Wechsel und Trennen setzen sofort auf das Minimum.
 - **Fortschritt** (`src/world/progression.ts`): XP-Werte in `XP`, Erfolge in `ACHIEVEMENTS`,
   Levelkurve `xpForNextLevel`. Segmente in `MVP_SEGMENTS` (`src/world/segments.ts`) als Knotenfolge.
-- **Welt** (`src/world/`): Seed `20261111`, Gelände per Noise, Wegenetz von Hand
-  in `roadLayout.ts` (19,5 km, max. 10 %).
+- **Welt** (`src/world/`): Seed `20261111`, 6 × 6 km, Gelände per Noise, Wegenetz von Hand
+  in `roadLayout.ts` (≈ 41,5 km, max. 10 %), Serpentinen am Kogel in `kogelLayout.ts`.
+- **Gebiete** (`REGIONS` in `roadLayout.ts`): Glutsteppe ab Level 3, Hoher Kogel ab Level 6.
 
 ## Offene Punkte
 
@@ -99,6 +103,13 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
 - Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
 
+**Hoher Kogel selbst prüfen:**
+- Ab Level 6 öffnen sich die Schranken am Passweg und am Waldrand
+- Fühlen sich Kogelstraße (Ø 6 %), Gipfelstraße und Westrampe (Ø 8 %) am Rad gut an? Die Stützpunkte stehen in
+  `kogelLayout.ts`; Berg, Baumgrenze und Geröll in `terrainGen.ts` (`KOGEL`) und `terrainMesh.ts` (`TREELINE`, `SCREE_LINE`)
+- Gefallen Almhütte, Kühe, Gipfelkreuz und Kehrenschilder? (`mountain.ts`)
+- Läuft es flüssig? Die Welt ist jetzt 6 × 6 km groß
+
 **Glutsteppe selbst prüfen:**
 - Ab Level 3 öffnet sich die Schranke an der Hafenbrücke (Meldung „Neues Gebiet“). Level und Status stehen auf der Karte (`M`)
 - Gefallen Bucht, Brücke, Rotklamm und Tafelberge? Formen in `terrainGen.ts` (`BAY`, `CANYON`, `MESAS`)
@@ -117,12 +128,12 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 
 ## Nächster Schritt
 
-Phase 6 weiter: nächstes Gebiet (Passweg zum Hohen Kogel als Bergregion), Wetter oder Sound.
-Startprompt:
+Phase 6 weiter: Wetter, Sound oder das nächste Gebiet (Spiegelseen im Nordwesten mit Seebrücke,
+oder Nordkap an der neuen Nordküste). Startprompt:
 
 ```text
 Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns das nächste Gebiet planen:
-den Passweg zum Hohen Kogel (Serpentinen, Gipfel mit Aussicht), freigeschaltet über das Level.
+die Spiegelseen im Nordwesten (Wald, drei Seen, Ufer-Rundweg, Seebrücke), freigeschaltet über das Level.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

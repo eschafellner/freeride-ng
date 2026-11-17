@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import type { Heightfield } from '../world/heightfield';
 import { distanceToRoad, REBLAND } from '../world/placement';
-import { mulberry32 } from '../world/random';
+import { mulberry32, smoothstep } from '../world/random';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
-import { steppeMask, townMask } from '../world/terrainGen';
+import { kogelMask, steppeMask, townMask } from '../world/terrainGen';
+import { SCREE_LINE, TREELINE } from './terrainMesh';
 import { merged, painted } from './details';
 
 const pick = <T>(rng: () => number, list: readonly T[]): T => list[Math.floor(rng() * list.length)]!;
@@ -485,7 +486,9 @@ export function createProps(
       }
       continue;
     }
-    if (slope > 0.45) {
+    // Am Kogel wächst auch an den steilen Flanken Bergwald
+    const steepLimit = kogelMask(x, z) > 0.03 ? 0.95 : 0.45;
+    if (slope > steepLimit) {
       if (rng() < 0.15) rocks.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.8 + rng() * 1.6) });
       continue;
     }
@@ -495,6 +498,21 @@ export function createProps(
       // In der Stadt nur vereinzelte Laubbäume in Gärten
       if (town < 0.9 && rng() < 0.03 && occupied.tryTake(x, z, 3)) {
         leafy.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.7 + rng() * 0.4) });
+      }
+      continue;
+    }
+    if (y > TREELINE - 40) {
+      // Kogel: lichter Bergwald an der Baumgrenze, darüber Almwiesen mit Felsbrocken
+      const r = rng();
+      const forest = 1 - smoothstep(TREELINE - 40, TREELINE + 25, y);
+      if (r < forest * 0.7) {
+        if (!occupied.tryTake(x, z, 1)) continue;
+        const sc = 0.6 + rng() * 0.6;
+        conifers.push({ matrix: mat(x, y - 0.2, z, rng() * 6, sc, sc * (0.9 + rng() * 0.5), sc) });
+      } else if (y > SCREE_LINE - 30 ? r > 0.88 : r > 0.97) {
+        rocks.push({ matrix: mat(x, y - 0.2, z, rng() * 6, 0.6 + rng() * 1.4) });
+      } else if (r > 0.94 && occupied.tryTake(x, z, 1)) {
+        bushes.push({ matrix: mat(x, y - 0.1, z, rng() * 6, 0.5 + rng() * 0.5), color: new THREE.Color('#8fa858') });
       }
       continue;
     }
@@ -540,9 +558,17 @@ export function createProps(
   const gates: Record<string, THREE.Object3D> = {};
   for (const n of roads.nodes.values()) {
     if (!n.gate) continue;
-    const e = roads.edge(n.edges.find((id) => !roads.edge(id).region) ?? n.edges[0]!);
+    // Führt ein Weg ins Gebiet, steht die Schranke ein Stück darauf (quer zu ihm), damit
+    // offene Wege durch den Knoten frei bleiben; sonst am Wegende quer zum Zufahrtsweg.
+    const inner = n.edges.map((id) => roads.edge(id)).find((e) => e.region !== undefined);
+    const e = inner ?? roads.edge(n.edges[0]!);
     const atEnd = e.to === n.id;
-    const d = e.directionAt(atEnd ? e.length : 0);
+    const inset = inner ? Math.min(7, e.length / 2) : 0;
+    const at = e.pointAt(atEnd ? e.length - inset : inset);
+    const raw = e.directionAt(atEnd ? e.length - inset : inset);
+    // Fahrtrichtung einer Fahrerin, die auf die Schranke zufährt
+    const sign0 = (inner ? !atEnd : atEnd) ? 1 : -1;
+    const d = { dx: raw.dx * sign0, dz: raw.dz * sign0 };
     const gate = new THREE.Group();
     gate.name = `schranke-${n.id}`;
     const barrier = new THREE.Mesh(
@@ -552,7 +578,7 @@ export function createProps(
       ]),
       new THREE.MeshLambertMaterial({ vertexColors: true }),
     );
-    barrier.position.set(n.x, n.y + 1.1, n.z);
+    barrier.position.set(at.x, at.y + 1.1, at.z);
     barrier.rotation.y = Math.atan2(d.dx, d.dz) + Math.PI / 2;
     gate.add(barrier);
     for (const side of [-3.2, 3.2]) {
@@ -560,19 +586,19 @@ export function createProps(
         new THREE.CylinderGeometry(0.12, 0.12, 1.3, 6),
         new THREE.MeshLambertMaterial({ color: '#eee' }),
       );
-      post.position.set(n.x - d.dz * side, n.y + 0.65, n.z + d.dx * side);
+      post.position.set(at.x - d.dz * side, at.y + 0.65, at.z + d.dx * side);
       gate.add(post);
     }
-    const region = REGIONS.find((r) => r.gateNode === n.id);
+    const region = REGIONS.find((r) => r.gateNodes.includes(n.id));
     if (region) {
       // Schild neben der Schranke, zur ankommenden Fahrerin gedreht
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshLambertMaterial({ map: gateSignTexture(region.name, region.unlockLevel) }));
-      const sx = n.x - d.dz * 4.4 - d.dx * 1.5;
-      const sz = n.z + d.dx * 4.4 - d.dz * 1.5;
-      sign.position.set(sx, n.y + 1.9, sz);
+      const sx = at.x - d.dz * 4.4 - d.dx * 1.5;
+      const sz = at.z + d.dx * 4.4 - d.dz * 1.5;
+      sign.position.set(sx, at.y + 1.9, sz);
       sign.rotation.y = Math.atan2(-d.dx, -d.dz);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6), new THREE.MeshLambertMaterial({ color: '#555' }));
-      pole.position.set(sx, n.y + 1.3, sz);
+      pole.position.set(sx, at.y + 1.3, sz);
       gate.add(sign, pole);
     }
     gates[n.id] = gate;

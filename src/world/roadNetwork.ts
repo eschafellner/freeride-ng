@@ -389,6 +389,11 @@ function carveTerrain(net: RoadNetwork, terrain: Heightfield, inner: number, out
   const weight = new Float32Array(res * res);
   const target = new Float32Array(res * res);
   const bestDist = new Float32Array(res * res).fill(Infinity);
+  // Obergrenze nahe der Fahrbahn: In engen Kehren liegen zwei Äste mit verschiedener
+  // Höhe dicht beieinander. Ohne Grenze stäche das Gelände (10-m-Raster) durch den
+  // tieferen Ast, darum zählt dort die niedrigste Fahrbahn in der Nähe.
+  const cap = new Float32Array(res * res).fill(Infinity);
+  const capDist = Math.min(inner, 9);
   const cells = Math.ceil(outer / terrain.cell);
 
   const stamp = (x: number, y: number, z: number) => {
@@ -401,6 +406,7 @@ function carveTerrain(net: RoadNetwork, terrain: Heightfield, inner: number, out
         const d = Math.hypot(terrain.worldX(i) - x, terrain.worldZ(j) - z);
         if (d > outer) continue;
         const k = j * res + i;
+        if (d <= capDist && y < cap[k]!) cap[k] = y;
         // Die nächstgelegene Wegstelle bestimmt die Zielhöhe
         if (d < bestDist[k]!) {
           bestDist[k] = d;
@@ -419,7 +425,7 @@ function carveTerrain(net: RoadNetwork, terrain: Heightfield, inner: number, out
 
   for (let k = 0; k < weight.length; k++) {
     const w = weight[k]!;
-    if (w > 0) terrain.data[k] = terrain.data[k]! + (target[k]! - terrain.data[k]!) * w;
+    if (w > 0) terrain.data[k] = Math.min(cap[k]!, terrain.data[k]! + (target[k]! - terrain.data[k]!) * w);
   }
   return weight;
 }

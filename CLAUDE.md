@@ -41,6 +41,7 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
 - `src/world/` – Weltmodell, reines TS ohne Three.js (testbar)
   - `terrainGen.ts` – prozedurales Gelände (Seed), benannte Formbausteine zum Nachbessern
   - `roadLayout.ts` – handgelegtes Wegenetz (Knoten, Kanten mit Stützpunkten), Gebiete mit Freischalt-Level (`REGIONS`)
+  - `kogelLayout.ts` – Serpentinen am Hohen Kogel (vom Hang-Tracer erzeugt, festgeschrieben)
   - `roadNetwork.ts` – Spline, Höhenprofil (Knotenausgleich, max. 10 %), Einschneiden ins Gelände, Brücken, gesperrte Gebiete
   - `rider.ts` – Fahrer folgt dem Netz, Abzweigungswahl über `ExitChooser`
   - `world.ts` – `createWorld(seed)`
@@ -53,7 +54,7 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
 - `src/game/` – Three.js-Darstellung und Spielseite (`index.html`): Gelände, Wege, Häuser/Bäume, Fahrerfigur, Kamera, HUD,
   Eingabe (`input.ts`, Tastatur + Gamepad), Karten (`minimap.ts`), Overlays, POI-Objekte, IndexedDB (`storage.ts`),
   Details (`props.ts` Platzierung/Vegetation, `houses.ts` Hausvarianten und Wege zur Tür, `shopFronts.ts` Ladenfronten, `details.ts` Wegrand/Weinberge,
-  `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Brücken), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
+  `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Brücken, `mountain.ts` Almhütte/Gipfelkreuz/Kehrenschilder), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
   `grass.ts`, `water.ts`, `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen),
   Tag-Nacht-Wechsel (`dayCycle.ts` reine Rechnung und Farben, `dayNight.ts` überträgt sie auf die Szene)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)

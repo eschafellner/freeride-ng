@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import type { Heightfield } from '../world/heightfield';
 import { fieldAt, REBLAND } from '../world/placement';
-import { mulberry32 } from '../world/random';
+import { mulberry32, smoothstep } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
-import { steppeMask, townMask } from '../world/terrainGen';
+import { kogelMask, steppeMask, townMask } from '../world/terrainGen';
 import { NOISE_GLSL } from './shaderChunks';
 
 const COLORS = {
@@ -24,7 +24,16 @@ const COLORS = {
   redRock: new THREE.Color('#a8553a'),
   redRockDark: new THREE.Color('#8a4330'),
   dryVerge: new THREE.Color('#a8955e'),
+  // Hoher Kogel: Almwiesen, Geröll und Fels oberhalb der Baumgrenze
+  alpine: new THREE.Color('#9fb85a'),
+  alpineDry: new THREE.Color('#b6b270'),
+  scree: new THREE.Color('#a9a497'),
+  screeDark: new THREE.Color('#87827a'),
 };
+
+/** Höhen am Kogel in m: ab hier Almwiesen statt Wald, darüber Geröll und Fels. */
+export const TREELINE = 470;
+export const SCREE_LINE = 590;
 
 /** Zellen pro Kachelkante (≈ 600 m bei 10-m-Raster). */
 const TILE_CELLS = 60;
@@ -78,7 +87,8 @@ export function createTerrainMesh(
     const mask = roads.maskAt(terrain, cx, cz);
     const r = rng();
 
-    const steep = Math.abs(n.y) < 0.82;
+    // Am Kogel sind die Flanken gleichmäßig steil und bewaldet: Fels erst bei steileren Stellen
+    const steep = Math.abs(n.y) < (kogelMask(cx, cz) > 0.03 ? 0.68 : 0.82);
     grass = 1;
     if (h < -0.5) {
       tmp.copy(COLORS.seabed);
@@ -104,6 +114,21 @@ export function createTerrainMesh(
         const patch = Math.sin(cx / 37) * Math.cos(cz / 53) + r * 0.6;
         tmp.copy(patch > 0.5 ? COLORS.dryGrass : COLORS.ochre).lerp(COLORS.dust, r * 0.35);
         grass = patch > 0.5 ? 0.35 : 0.08;
+      }
+    }
+    // Hoher Kogel oberhalb der Baumgrenze: Almwiesen, darüber Geröll und Fels
+    else if (h > TREELINE - 25 + r * 30) {
+      // Geröllfelder fleckig zwischen Rasenpolstern, nach oben hin mehr
+      const blot = Math.sin(cx / 23 + Math.cos(cz / 31)) * Math.cos(cz / 19 - Math.sin(cx / 27));
+      const rocky = smoothstep(SCREE_LINE - 40, SCREE_LINE + 60, h + (r - 0.5) * 50 + blot * 45) * (0.6 + 0.4 * blot);
+      if (mask > 0.15 && rocky < 0.5) tmp.copy(COLORS.verge).lerp(COLORS.alpine, 0.5);
+      else if (rocky > 0.5 || Math.abs(n.y) < 0.8) {
+        tmp.copy(r < 0.5 ? COLORS.scree : COLORS.screeDark).lerp(COLORS.alpineDry, (1 - rocky) * 0.4);
+        grass = 0.08 + (1 - rocky) * 0.2;
+      } else {
+        const patch = Math.sin(cx / 29) * Math.cos(cz / 41) + r * 0.7;
+        tmp.copy(patch > 0.6 ? COLORS.alpineDry : COLORS.alpine).lerp(COLORS.meadow, r * 0.3);
+        grass = 0.75;
       }
     }
     // Böschungen an Wegen: begrünt statt Fels

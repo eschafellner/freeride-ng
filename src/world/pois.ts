@@ -36,7 +36,7 @@ export const POI_RADIUS: Record<PoiType, number> = {
 const c = (id: string, edgeId: string, t: number): PoiDef => ({ id, type: 'collectible', edgeId, t });
 const sign = (id: string, name: string, edgeId: string, t: number): PoiDef => ({ id, type: 'sign', name, edgeId, t });
 
-/** 15 Sammelobjekte in Lumen und Rebland, 5 in der Glutsteppe, bevorzugt abseits der Hauptrunde. */
+/** 15 Sammelobjekte in Lumen und Rebland, je 5 in Glutsteppe und am Kogel, bevorzugt abseits der Hauptrunde. */
 export const MVP_POIS: PoiDef[] = [
   c('k01', 'prom-w', 0.5),
   c('k02', 'westhafen', 0.6),
@@ -83,6 +83,15 @@ export const MVP_POIS: PoiDef[] = [
   sign('s-glutdorf-w', 'Glutdorf', 'steppenstrasse', 0.7),
   sign('s-glutdorf-n', 'Glutdorf', 'lange-gerade', 0.12),
   sign('s-glutdorf-o', 'Glutdorf', 'kapweg', 0.85),
+
+  // Hoher Kogel (ab Level 6)
+  c('k21', 'kogelstrasse', 0.35),
+  c('k22', 'kogelstrasse', 0.8),
+  c('k23', 'gipfelstrasse', 0.55),
+  c('k24', 'westrampe', 0.3),
+  c('k25', 'westrampe', 0.75),
+  { id: 'v-kogelalm', type: 'viewpoint', name: 'Kogelalm', nodeId: 'kogelalm' },
+  { id: 'v-kogel', type: 'viewpoint', name: 'Hoher Kogel', nodeId: 'gipfel' },
 ];
 
 export function resolvePois(net: RoadNetwork, defs: PoiDef[] = MVP_POIS): Poi[] {

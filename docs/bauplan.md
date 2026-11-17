@@ -260,6 +260,23 @@ Offen aus Phase 5:
 - Häuser (`houses.ts`): 8 Wohnhaus- und 6 Stadthaus-Varianten mit verschiedenen Türen (Vordach, Rundbogen, Doppeltür, Glastür, Stufe, Wandleuchte), Fenstern mit Rahmen, Sprossen, Fensterbank, Fensterläden und Blumenkästen, Gauben und Läden mit Markise. Die Wandfarbe tönt nur die Wände
 - Von jeder Haustür führt ein leicht geschwungener Trittsteinweg zum Gehsteig bzw. zur Straße, mit Kieseln und Blumen am Rand, dazu Büsche an den Hausecken. Auf den Wegen wächst kein Gras
 
+**16.11.2026, Phase 6: Hoher Kogel** (Vorgaben aus dem Gespräch: Gipfel ca. 700 m, ab Level 6, Runde mit Abfahrt über die Westflanke):
+- Welt von 4,8 auf **6 km** Kantenlänge vergrößert (gleiches Raster, Lumen, Rebland und Glutsteppe unverändert), Nordküste mit Steilufer. Erkundungsnebel alter Spielstände wird mittig übernommen (getestet)
+- Berg in `terrainGen.ts` (`KOGEL`, `kogelProfile`): gleichmäßige Flanken, runde Kuppe, Gipfel ≈ 690 m. Der Fuß läuft vor dem Passweg aus, die Knoten von Rebland und Passstraße bleiben auf ihrer Höhe
+- Wege in `kogelLayout.ts`, von einem Hang-Tracer mit Zielsteigung und Kehren erzeugt und festgeschrieben: **Kogelstraße** (Pass → Kogelalm), **Gipfelstraße** (Kogelalm → Gipfel), **Westrampe** (Waldrand → Gipfel). Zusammen 14,5 km, max. 10 %, Einschnitte bis knapp 30 m, Dämme bis 11 m
+- Gebiet „Hoher Kogel“ ab **Level 6** mit zwei Schranken (Passweg, Waldrand). `RegionDef` hat dafür `gateNodes` statt `gateNode`. Führt ein Weg ins Gebiet weiter, steht die Schranke ein Stück auf diesem Weg, damit Durchfahrten am Knoten frei bleiben
+- Bergwertungen **Hoher Kogel** (Pass → Gipfel, ≈ 7,4 km, ≈ 500 Hm) und **Westrampe** (≈ 7,1 km, ≈ 520 Hm), Erfolge „Gipfelsieg“ und „Die harte Seite“ (je 150 XP), 5 Kristalle, Aussichtspunkte Kogelalm und Gipfel
+- Ausstattung (`mountain.ts`): Almhütte mit Balkon, Tisch, Brunnen und Kühen, Gipfelkreuz, Biwakhütte, Kehrenschilder „Kehre n“ mit Höhe (gezählt von unten bis 1 am Gipfel)
+- Optik: Bergwald auch an steilen Flanken, Baumgrenze bei 470 m, darüber Almwiesen, ab 590 m fleckige Geröllfelder
+- Fix: In engen Kehren stach das Gelände durch die Fahrbahn. Nahe jeder Straße liegt das Gelände jetzt höchstens auf Höhe der tiefsten Fahrbahn in der Nähe (`carveTerrain`, getestet). Bäume und Leitpfosten halten auch Abstand zum eigenen Gegenast
+- 209 Tests grün
+
+Offen aus dem Hohen Kogel:
+
+- [ ] Am echten Rad fahren: Sind 7 % im Mittel (Gipfelstraße und Westrampe ≈ 8 %) mit der Schwierigkeit 50 % angenehm? Sonst die Stützpunkte länger ziehen
+- [ ] Kehren mit Leitplanke oder Mauer an der Außenseite, Almhütte als Café/Laden (mit dem Ladensystem), Hütte nachts beleuchtet
+- [ ] Die große Karte zeigt viel Meer im Süden (die Insel sitzt nicht mittig im 6-km-Quadrat)
+
 **13.11.2026, Phase 6: Tag-Nacht-Wechsel** (Vorgaben aus dem Gespräch):
 - Im Grafikmenü wählbar: **Tag-Nacht-Zyklus** (Standard) oder **Immer Tag** (sieht aus wie vorher)
 - Ein Tag dauert 30 Minuten: 18 Minuten Tag, 12 Minuten Nacht. Die Nacht beginnt mit 1 Minute Abenddämmerung und endet mit 1 Minute Morgendämmerung. Auf der Uhr im HUD: Sonnenaufgang 6:00, Sonnenuntergang 18:00. Die Zeit läuft nur während der Fahrt (nicht in Pause und Menü), jede Sitzung beginnt am Vormittag
@@ -286,7 +303,8 @@ Offen aus Phase 6 (bisher):
 - [x] Tag-Nacht-Wechsel (siehe oben)
 - [ ] Tag-Nacht-Wechsel am echten Bildschirm prüfen: Ist die Nacht hell genug (Stufe 6)? Leuchten Fenster und Laternen passend? Werte in `PALETTE` und `houseGlow` (`houses.ts`)
 - [ ] Optional: Lichtkegel der Laternen auf dem Boden, Mond mit Struktur
-- [ ] Weitere Gebiete: Passweg zum Hohen Kogel, Spiegelseen, Nordkap
+- [x] Passweg zum Hohen Kogel (siehe unten)
+- [ ] Weitere Gebiete: Spiegelseen, Nordkap
 
 **13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**
 - Oberflächen im Shader statt Bilddateien (`houseMaterial()` in `houses.ts`, Attribut `surf`): Putz mit Struktur und Flecken, Regenspuren unter der Traufe, Schmutz und Spritzwasser am Sockel, an manchen Häusern abgeplatzter Putz mit Ziegeln darunter. Dazu Dachziegel in versetzten Reihen mit Moos auf der Nordseite, Steinquader (Sockel, Fensterbänke, Eckquader), Holzbretter (Türen, Läden, Scheunen), Fachwerk mit Streben und Glas mit Himmelsspiegelung. Feine Muster blenden in der Ferne aus (gegen Flimmern)

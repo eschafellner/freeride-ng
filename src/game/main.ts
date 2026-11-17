@@ -26,6 +26,7 @@ import { createSegmentMarkers, SEGMENT_COLOR } from './segmentMarkers';
 import { PoiMeshes } from './poiMeshes';
 import { createDetails } from './details';
 import { createLandmarks } from './landmarks';
+import { createMountainDetails } from './mountain';
 import { createProps } from './props';
 import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
@@ -88,6 +89,10 @@ async function main() {
   }
   landmarks.group.name = 'wahrzeichen';
   scene.add(landmarks.group);
+  // Hoher Kogel: Almhütte, Gipfelkreuz, Kehrenschilder
+  const mountain = createMountainDetails(world.terrain, world.roads, world.seed);
+  landmarks.reserved.push(...mountain.reserved);
+  scene.add(mountain.group);
   const props = createProps(world.terrain, world.roads, world.seed, landmarks.reserved);
   props.name = 'gebaeude';
   scene.add(props);
@@ -97,7 +102,7 @@ async function main() {
   const gates = props.userData.gates as Record<string, THREE.Object3D>;
   const lockAll = !demo || params.has('locked');
   if (lockAll) for (const r of REGIONS) world.roads.lockedRegions.add(r.id);
-  for (const r of REGIONS) gates[r.gateNode]!.visible = lockAll;
+  for (const r of REGIONS) for (const g of r.gateNodes) gates[g]!.visible = lockAll;
   // Wege zu den Haustüren: kein Gras auf den Trittsteinen
   addMaskLines(terrainUniforms, props.userData.pathLines as { x: number; z: number }[][], 1.6);
   // Hausgrundrisse: kein Gras an den Wänden und vor den Fenstern
@@ -436,7 +441,7 @@ async function main() {
       case 'collect':
         poiMeshes.collect(ev.poi.id);
         toasts.show('Kristall gefunden', `${ev.collected} von ${ev.total}`, 'gold');
-        if (ev.collected === ev.total) toasts.show('Alle Kristalle gefunden!', 'Lumen und Rebland sind komplett', 'gold');
+        if (ev.collected === ev.total) toasts.show('Alle Kristalle gefunden!', 'Die ganze Insel ist abgesucht', 'gold');
         saveNow();
         break;
       case 'viewpoint':
@@ -505,7 +510,7 @@ async function main() {
     for (const r of REGIONS) {
       if (!world.roads.lockedRegions.has(r.id) || level < r.unlockLevel) continue;
       world.roads.lockedRegions.delete(r.id);
-      gates[r.gateNode]!.visible = false;
+      for (const g of r.gateNodes) gates[g]!.visible = false;
       if (!silent) toasts.show(`Neues Gebiet: ${r.name}`, `Jetzt offen ${r.via}`, 'level');
     }
   }

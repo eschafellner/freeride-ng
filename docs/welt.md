@@ -21,7 +21,7 @@ Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitst
 | 1 | **Hafenstadt Lumen** (Start) | Südküste | Hafen, Promenade, Altstadt, Raster-Straßen | 0–2 % | 0–30 m | ~8 km | MVP |
 | 2 | **Rebland** | Südwesten | sanfte Hügel, Weinberge, zwei Dörfer | 2–6 % | 30–250 m | ~15 km | MVP |
 | 3 | **Spiegelseen** | Nordwesten | Wald, drei Seen, Ufer-Rundweg | 0–3 % | 150–200 m | ~15 km | 6 |
-| 4 | **Hoher Kogel** | Inselmitte | einzelner Berg, Serpentinen, Gipfel mit Aussicht | 6–10 %, Rampen bis 12 % | bis 1.100 m | ~20 km | 6 |
+| 4 | **Hoher Kogel** | Norden, über Rebland | einzelner Berg, Serpentinen, Gipfel mit Aussicht | 6–10 % | bis 690 m | ~14,5 km | 6 ✅ |
 | 5 | **Glutsteppe** | Osten | trocken, rote Felsen, weite Sicht, Canyon | 0–4 %, lange Geraden | 10–200 m | ~7,5 km (erste Ausbaustufe) | 6 ✅ |
 | 6 | **Nordkap** | Nordküste | Klippen, Leuchtturm, Küstenstraße | wellig 3–8 % | 20–180 m | ~12 km | 6 |
 
@@ -83,6 +83,32 @@ West- und eine Ostküste.
   Glutplateau (Aussichtspunkte), Windkamm. 5 Kristalle.
 - Formen zum Nachbessern in `src/world/terrainGen.ts`: `BAY`, `CANYON`, `MESAS`, `steppeMask`.
 
+## Hoher Kogel (Phase 6, ab Level 6)
+
+Umgesetzt im November 2026. Die Welt ist dafür auf **6 × 6 km** gewachsen (gleiches
+10-m-Raster, bestehende Gebiete unverändert), im Norden gibt es jetzt eine Küste mit
+Steilufer (`NORTH_COAST_Z`).
+
+- **Lage:** nördlich von Rebland und Hangdorf, Gipfel bei (0, −2300). Zugänge: die
+  Passstraße (Schranke am **Passweg**) und der **Waldrand** (Schranke auf der Westrampe).
+- **Gelände:** ein einzelner Berg mit fast gleichmäßig steilen Flanken (rund 60 %),
+  oben und unten abgerundet, Gipfel **≈ 690 m**, rund 525 m über der Hochfläche.
+  Rippen und Rinnen strahlen vom Gipfel weg. Bergwald bis zur Baumgrenze bei
+  **470 m**, darüber Almwiesen, ab **590 m** Geröllfelder. Formen in
+  `terrainGen.ts`: `KOGEL`, `kogelProfile`, `kogelMask`; Farben und Baumgrenze in
+  `terrainMesh.ts` (`TREELINE`, `SCREE_LINE`).
+- **Wege (≈ 14,5 km), alle mit Kehren:**
+  - **Kogelstraße** (Pass → Kogelalm, 4,5 km, Ø 6 %) und **Gipfelstraße** (Kogelalm →
+    Gipfel, 2,9 km, Ø 8 %) auf der Südostflanke: die leichtere Seite, zusammen die
+    Bergwertung **Hoher Kogel** (≈ 7,4 km, ≈ 500 Hm)
+  - **Westrampe** (Waldrand → Gipfel, 7,1 km, Ø 8 %) auf der Westflanke: die harte Seite,
+    eigene Bergwertung. Mit Passweg und Waldweg ergibt sich eine Runde über den Gipfel.
+  - Die Stützpunkte hat ein Hang-Tracer erzeugt (Zielsteigung, Kehre am Rand der Flanke);
+    sie stehen fest in `src/world/kogelLayout.ts` und lassen sich dort nachbessern.
+- **Orte und Punkte:** Kogelalm (Almhütte mit Balkon, Tisch, Brunnen, Kühe) und Gipfel
+  (Gipfelkreuz, Biwakhütte), beide Aussichtspunkte. Kehrenschilder „Kehre n“ mit Höhe,
+  gezählt wie an Alpenpässen von unten herunter bis 1 am Gipfel. 5 Kristalle.
+
 ## Datenformat (Vorschlag für Phase 3)
 
 - **Gelände:** Höhenkarte als 16-Bit-Graustufen-PNG oder `Float32Array`, z.B.
@@ -99,7 +125,6 @@ West- und eine Ostküste.
 
 ## Offene Fragen
 
-- Eigene Ideen: Lieblingsanstieg aus der Gegend oder ein Berg, nach dem der Kogel
-  modelliert wird (Länge, Höhenmeter)?
+- ~~Höhe des Kogels~~ Entschieden: rund 700 m statt 1.100 m (Auffahrt ≈ 7 km, 25–35 Minuten)
 - ~~Gelände von Hand malen oder per Noise?~~ Entschieden: per Noise erzeugen (feste Seeds), danach gezielt nachbessern
 - Namen der Regionen

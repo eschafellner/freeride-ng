@@ -1,6 +1,6 @@
 import { createNoise2D } from 'simplex-noise';
 import { Heightfield } from './heightfield';
-import { lerp, mulberry32, smoothstep } from './random';
+import { clamp, lerp, mulberry32, smoothstep } from './random';
 
 /**
  * Prozedurales Gelände für den MVP-Ausschnitt von Velara:
@@ -13,12 +13,12 @@ import { lerp, mulberry32, smoothstep } from './random';
 
 /**
  * Kantenlänge der Welt in m. Lumen und Rebland liegen im Bereich ±1500 m, die
- * Glutsteppe östlich davon. Das 10-m-Raster bleibt, damit sich bestehende
- * Gebiete beim Vergrößern nicht verändern.
+ * Glutsteppe östlich davon, der Hohe Kogel im Norden. Das 10-m-Raster bleibt, damit
+ * sich bestehende Gebiete beim Vergrößern nicht verändern.
  */
-export const MVP_SIZE_M = 4800;
-/** 481 Punkte → 10 m Raster. */
-export const MVP_RES = 481;
+export const MVP_SIZE_M = 6000;
+/** 601 Punkte → 10 m Raster. */
+export const MVP_RES = 601;
 export const SEA_LEVEL = 0;
 
 /** Rechteck der Stadtfläche Lumen (weich ausgeblendet). */
@@ -51,6 +51,54 @@ export const MESAS = [
   { x: 1980, z: 470, r: 45, h: 28 },
   { x: 1860, z: -1030, r: 70, h: 60 },
 ] as const;
+
+// --- Hoher Kogel (Norden, hinter dem Passweg) ----------------------------------------
+
+/**
+ * Der Berg: Gipfel, Höhe über der Hochfläche, Radius des Fußes. Die Flanken sind
+ * fast gleichmäßig steil (gut für Kehren), Gipfel und Fuß sind abgerundet. Nach Süden
+ * läuft der Fuß vor dem Passweg aus, damit Rebland und Passstraße unverändert bleiben.
+ */
+export const KOGEL = { x: 0, z: -2300, h: 525, foot: 1080, round: 0.25, southEnd: -1330 } as const;
+
+/** Nordküste (z-Wert der Küstenlinie, leicht gewellt). */
+export const NORTH_COAST_Z = -2880;
+
+/**
+ * Höhenprofil des Kogels über dem Abstand (0 … 1 des Fußradius): 1 am Gipfel, 0 am Fuß.
+ * Gleichmäßige Neigung, oben und unten auf `round` des Radius weich gerundet.
+ */
+export function kogelProfile(t: number): number {
+  const a = KOGEL.round;
+  const tt = clamp(t, 0, 1);
+  let g: number;
+  if (tt < a) g = (tt * tt) / (2 * a);
+  else if (tt > 1 - a) g = 1 - a - (1 - tt) ** 2 / (2 * a);
+  else g = a / 2 + (tt - a);
+  return 1 - g / (1 - a);
+}
+
+/** Anteil des Bergs an einem Punkt (0 … 1, 1 am Gipfel), ohne Rippen. */
+export function kogelMask(x: number, z: number): number {
+  const d = Math.hypot(x - KOGEL.x, z - KOGEL.z);
+  return kogelProfile(d / KOGEL.foot) * smoothstep(KOGEL.southEnd, KOGEL.southEnd - 380, z);
+}
+
+/** Zusätzliche Höhe des Kogels: gleichmäßige Flanken, Rippen und Rinnen. */
+function kogelHeight(x: number, z: number, noise: (x: number, z: number) => number): number {
+  const dx = x - KOGEL.x;
+  const dz = z - KOGEL.z;
+  const d = Math.hypot(dx, dz);
+  if (d > KOGEL.foot * 1.15) return 0;
+  const fade = smoothstep(KOGEL.southEnd, KOGEL.southEnd - 380, z);
+  if (fade <= 0) return 0;
+  // Rippen und Rinnen strahlenförmig vom Gipfel weg
+  const ang = Math.atan2(dz, dx);
+  const wobble = 1 + 0.05 * noise(Math.cos(ang) * 1.4, Math.sin(ang) * 1.4) + 0.025 * Math.sin(ang * 7);
+  const p = kogelProfile((d * wobble) / KOGEL.foot);
+  const crag = 10 * noise(x / 140, z / 140) * Math.min(p, 1 - p) * 2;
+  return (KOGEL.h * p + crag) * fade;
+}
 
 /** 1 in der Glutsteppe, 0 westlich der Bucht. */
 export function steppeMask(x: number, z: number): number {
@@ -155,10 +203,14 @@ export function generateTerrain({ seed, size = MVP_SIZE_M, res = MVP_RES }: Terr
       const steppe = steppeMask(x, z);
       if (steppe > 0) h = lerp(h, steppeHeight(x, z, detailNoise), steppe);
 
+      // Hoher Kogel im Norden
+      h += kogelHeight(x, z, coastNoise);
+
       // Meer: Südküste, dazu West- und Ostküste der Insel und die Bucht vor der Glutsteppe
       const westD = x - (-1760 + 60 * coastNoise(0.81, z / 500));
       const eastD = 2260 + 70 * coastNoise(0.23, z / 450) - x;
-      const coast = Math.min(d, westD, eastD);
+      const northD = z - (NORTH_COAST_Z + 55 * coastNoise(x / 520, 0.61));
+      const coast = Math.min(d, westD, eastD, northD);
       h = lerp(h, SEA_LEVEL - 10, smoothstep(40, -80, coast));
       h = lerp(h, SEA_LEVEL - 9, bayMask(x, z, 18 * coastNoise(0.5, z / 300)));
 

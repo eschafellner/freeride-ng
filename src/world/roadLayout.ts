@@ -1,3 +1,5 @@
+import { KOGEL_EDGES, KOGEL_NODES } from './kogelLayout';
+
 /**
  * Wegenetz des MVP-Ausschnitts (Lumen + Rebland), siehe docs/welt.md.
  * Koordinaten in m: x nach Osten, z nach Süden, Ursprung in der Inselmitte.
@@ -9,7 +11,10 @@ export interface LayoutNode {
   x: number;
   z: number;
   name?: string;
-  /** Schranke: Wegende bzw. Übergang, der später freigeschaltet wird (Brücke, Baustelle …). */
+  /**
+   * Schranke: Wegende bzw. Übergang, der später freigeschaltet wird (Brücke, Baustelle …).
+   * Führt ein Weg eines Gebiets weiter, steht die Schranke ein Stück auf diesem Weg.
+   */
   gate?: boolean;
   /** Gebiet, zu dem der Knoten gehört (gesperrt bis zur Freischaltung). */
   region?: string;
@@ -26,14 +31,15 @@ export interface RegionDef {
   id: string;
   name: string;
   unlockLevel: number;
-  /** Knoten mit der Schranke vor dem Gebiet. */
-  gateNode: string;
+  /** Knoten mit den Schranken vor dem Gebiet (ein Gebiet kann mehrere Zugänge haben). */
+  gateNodes: string[];
   /** Text für Karte und Meldungen, z. B. „über die Hafenbrücke“. */
   via: string;
 }
 
 export const REGIONS: RegionDef[] = [
-  { id: 'glutsteppe', name: 'Glutsteppe', unlockLevel: 3, gateNode: 'bruecke', via: 'über die Hafenbrücke' },
+  { id: 'glutsteppe', name: 'Glutsteppe', unlockLevel: 3, gateNodes: ['bruecke'], via: 'über die Hafenbrücke' },
+  { id: 'kogel', name: 'Hoher Kogel', unlockLevel: 6, gateNodes: ['pass', 'waldrand'], via: 'über den Passweg und am Waldrand' },
 ];
 
 export interface LayoutEdge {
@@ -76,7 +82,7 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'pass', x: -100, z: -1350, name: 'Passweg', gate: true },
     { id: 'strand', x: -900, z: 860, name: 'Weststrand' },
     { id: 'aussicht', x: 850, z: -450, name: 'Aussicht Ostkamm' },
-    { id: 'waldrand', x: -950, z: -1150, name: 'Waldrand' },
+    { id: 'waldrand', x: -950, z: -1150, name: 'Waldrand', gate: true },
     // Glutsteppe (hinter der Hafenbrücke, ab Level 3)
     { id: 'brueckenkopf', x: 1650, z: 905, name: 'Brückenkopf', region: 'glutsteppe' },
     { id: 'glutdorf', x: 1840, z: 770, name: 'Glutdorf', region: 'glutsteppe' },
@@ -88,6 +94,8 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'windkamm', x: 2110, z: -720, name: 'Windkamm', region: 'glutsteppe' },
     { id: 'mittelkreuz', x: 1915, z: 160, region: 'glutsteppe' },
     { id: 'plateau', x: 2040, z: -1210, name: 'Glutplateau', region: 'glutsteppe' },
+    // Hoher Kogel (hinter dem Passweg, ab Level 6), Serpentinen in kogelLayout.ts
+    ...KOGEL_NODES,
   ],
   edges: [
     // Promenade
@@ -151,7 +159,8 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'kapweg', from: 'ostkap', to: 'glutdorf', via: [[1990, 760]], region: 'glutsteppe' },
     { id: 'windweg', from: 'nordkreuz', to: 'windkamm', via: [[2080, -520]], name: 'Windkamm', region: 'glutsteppe' },
     { id: 'kammabstieg', from: 'windkamm', to: 'klamm-n', via: [[1980, -860], [1830, -860]], region: 'glutsteppe' },
-    // Richtung Kogel (gesperrt)
+    // Richtung Kogel
     { id: 'passstrasse', from: 'hangdorf', to: 'pass', via: [[-40, -700], [-260, -930], [60, -1150]], name: 'Passstraße' },
+    ...KOGEL_EDGES,
   ],
 };

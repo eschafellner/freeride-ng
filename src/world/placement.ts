@@ -115,7 +115,8 @@ export function roadside(terrain: Heightfield, roads: RoadNetwork, o: RoadsideOp
         const x = p.x - d.dz * o.offset * side;
         const z = p.z + d.dx * o.offset * side;
         if (o.pointFilter && !o.pointFilter(x, z)) continue;
-        if (nearOtherRoad(roads, e, x, z, o.offset - 0.5)) continue;
+        // Auch der eigene Weg zählt: in engen Kehren liegt der Gegenast ganz nah
+        if (nearOtherRoad(roads, undefined, x, z, o.offset - 0.5)) continue;
         out.push({ x, y: terrain.sample(x, z), z, rot: Math.atan2(d.dx, d.dz) });
       }
     }
@@ -163,7 +164,7 @@ export function distanceToRoad(roads: RoadNetwork, x: number, z: number, except?
 }
 
 /** Liegt (x, z) näher als `dist` an einer anderen Kante als `self`? */
-function nearOtherRoad(roads: RoadNetwork, self: RoadEdge, x: number, z: number, dist: number): boolean {
+function nearOtherRoad(roads: RoadNetwork, self: RoadEdge | undefined, x: number, z: number, dist: number): boolean {
   return distanceToRoad(roads, x, z, self, dist + GRID_CELL) < dist;
 }
 

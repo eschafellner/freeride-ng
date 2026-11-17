@@ -52,7 +52,7 @@ function ride(
 describe('Segmente', () => {
   it('alle MVP-Segmente lassen sich im Wegenetz auflösen', () => {
     const segs = resolveSegments(world.roads, MVP_SEGMENTS);
-    expect(segs).toHaveLength(3);
+    expect(segs).toHaveLength(5);
     const climb = segs.find((s) => s.kind === 'climb')!;
     expect(climb.climb).toBeGreaterThan(50);
     expect(segs.every((s) => s.length > 300)).toBe(true);

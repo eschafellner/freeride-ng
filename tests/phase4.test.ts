@@ -110,9 +110,9 @@ describe('POIs', () => {
     }
   });
 
-  it('IDs sind eindeutig, 20 Sammelobjekte (15 + 5 in der Glutsteppe)', () => {
+  it('IDs sind eindeutig, 25 Sammelobjekte (15 + je 5 in Glutsteppe und am Kogel)', () => {
     expect(new Set(pois.map((p) => p.id)).size).toBe(pois.length);
-    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(20);
+    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(25);
   });
 
   it('jedes Sammelobjekt ist mit dem Fahrer erreichbar', () => {
@@ -138,7 +138,7 @@ describe('GameProgress', () => {
   it('sammelt einmal ein', () => {
     const g = new GameProgress(pois);
     const ev = g.update(k01, 0);
-    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 20 })]);
+    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 25 })]);
     expect(g.update(k01, 1)).toEqual([]);
   });
 
@@ -237,6 +237,16 @@ describe('Erkundungsnebel aus einer kleineren Welt', () => {
     expect(big.isRevealed(-1400, -1400)).toBe(true);
     expect(big.isRevealed(2000, 0)).toBe(false);
     expect(big.countRevealed(() => true)).toBe(small.countRevealed(() => true));
+  });
+
+  it('auch von 4,8 auf 6 km (Hoher Kogel)', () => {
+    const old = new FogGrid(4800, 20);
+    old.reveal(1800, 700, 50);
+    const big = new FogGrid(6000, 20, old.cells);
+    expect(big.res).toBe(300);
+    expect(big.isRevealed(1800, 700)).toBe(true);
+    expect(big.isRevealed(0, -2300)).toBe(false);
+    expect(big.countRevealed(() => true)).toBe(old.countRevealed(() => true));
   });
 
   it('ignoriert Daten, die zu keinem Raster passen', () => {
