@@ -1,5 +1,6 @@
 import type { Measurement } from '../device/types';
 import { Gearbox, speedFromCadence, WHEEL_CIRCUMFERENCE_M } from './gears';
+import { ARCADE_MAX_LEVEL, arcadeCadence, arcadeTargetSpeed, stepArcadeSpeed } from './arcade';
 import { DEFAULT_PHYSICS, powerRequired, stepSpeed, type PhysicsParams } from './physics';
 
 /**
@@ -13,12 +14,14 @@ import { DEFAULT_PHYSICS, powerRequired, stepSpeed, type PhysicsParams } from '.
  *             die Engine berechnet die dafür nötigen Watt bei der aktuellen Steigung.
  * - 'simple': Zielwatt = Grundleistung × (1 + k × Steigung in %).
  * - 'erg':    feste Zielwatt (für späteren Trainingsmodus).
+ * - 'arcade': kein Gerät, Tempo per Tempomat in Stufen (`arcade.ts`). Zielwatt bleiben
+ *             auf dem Minimum, Leistung und Trittfrequenz sind nur angezeigte Schätzwerte.
  *
- * In allen Modi kommt das Tempo aus der Physik mit der *gemessenen* Leistung.
+ * In den anderen Modi kommt das Tempo aus der Physik mit der *gemessenen* Leistung.
  * Bergab fällt die Zielleistung aufs Minimum, man rollt.
  */
 
-export type RideMode = 'sim' | 'simple' | 'erg';
+export type RideMode = 'sim' | 'simple' | 'erg' | 'arcade';
 
 export interface RideConfig {
   physics: PhysicsParams;
@@ -99,6 +102,8 @@ export class RideEngine {
   private grade = 0;
   /** Geglättete, ungerundete Zielwatt. */
   private target: number;
+  /** Arcade: Stufe des Tempomats (0 = ausrollen). */
+  private cruise = 0;
 
   constructor(config: Partial<RideConfig> = {}, gears = new Gearbox()) {
     this.config = { ...DEFAULT_RIDE_CONFIG, ...config };
@@ -135,6 +140,15 @@ export class RideEngine {
     this.config.mode = mode;
   }
 
+  /** Arcade: Stufe des Tempomats. */
+  get cruiseLevel(): number {
+    return this.cruise;
+  }
+
+  setCruise(level: number): void {
+    this.cruise = Math.min(ARCADE_MAX_LEVEL, Math.max(0, Math.round(level)));
+  }
+
   /**
    * Ein Physikschritt.
    * @param dtSec Zeitschritt (z.B. 0.05 bei 20 Hz)
@@ -146,9 +160,14 @@ export class RideEngine {
     this.grade = Number.isFinite(grade) ? grade : 0;
     const { power, cadence } = this.liveValues(nowMs);
 
-    // Fahrdynamik mit gemessener Leistung und echter Steigung
     const prevSpeed = this.speed;
-    this.speed = stepSpeed(this.speed, power, this.grade, dt, this.config.physics);
+    if (this.config.mode === 'arcade') {
+      // Tempomat statt Leistung, vereinfachte Steigung
+      this.speed = stepArcadeSpeed(this.speed, arcadeTargetSpeed(this.cruise, this.grade), dt);
+    } else {
+      // Fahrdynamik mit gemessener Leistung und echter Steigung
+      this.speed = stepSpeed(this.speed, power, this.grade, dt, this.config.physics);
+    }
     const ds = ((prevSpeed + this.speed) / 2) * dt;
     this.distance += ds;
     if (this.grade > 0) this.elevationGain += ds * Math.sin(Math.atan(this.grade));
@@ -180,6 +199,8 @@ export class RideEngine {
     const c = this.config;
     const feltGrade = this.grade * c.difficulty;
     switch (c.mode) {
+      case 'arcade':
+        return c.minWatts;
       case 'erg':
         return c.ergWatts;
       case 'simple':
@@ -213,6 +234,12 @@ export class RideEngine {
   }
 
   private liveValues(nowMs: number): { power: number; cadence: number; heartRate: number } {
+    if (this.config.mode === 'arcade') {
+      // Geschätzte Leistung für Anzeige und Historie: was das Tempo in der Ebene bzw. am Berg kosten würde
+      const pedalling = this.cruise > 0;
+      const est = pedalling ? powerRequired(this.speed, this.grade * this.config.difficulty, this.config.physics) : 0;
+      return { power: Math.round(Math.min(400, Math.max(0, est))), cadence: pedalling && this.speed > 0.3 ? arcadeCadence(this.cruise) : 0, heartRate: 0 };
+    }
     const m = this.measurement;
     if (!m || nowMs - m.timestamp > this.config.staleAfterMs) {
       return { power: 0, cadence: 0, heartRate: 0 };

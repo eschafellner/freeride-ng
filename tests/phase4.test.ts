@@ -189,7 +189,7 @@ describe('Spielstand', () => {
     position: { edgeId: 'rebstrasse', s: 100, dir: -1 },
     totals: { distance: 1234, elevationGain: 56, timeSec: 300 },
     gearIndex: 4, collected: ['k01'], viewpoints: [], fog: new Uint8Array(10),
-    achievements: [], bonusXp: 0, segments: {},
+    achievements: [], bonusXp: 0, segments: {}, arcadeSegments: {},
   };
 
   it('übernimmt einen gültigen Stand', () => {

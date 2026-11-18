@@ -13,7 +13,7 @@ import {
   ACHIEVEMENTS, levelFor, newAchievements, segmentXp, totalXp, type PlayerStats,
 } from '../world/progression';
 import {
-  formatSegmentTime, pointOnSegment, resolveSegments, SEGMENT_KIND_LABEL, SegmentTracker, type SegmentEvent,
+  formatSegmentTime, pointOnSegment, resolveSegments, SEGMENT_KIND_LABEL, SegmentTracker, type SegmentEvent, type SegmentRecord,
 } from '../world/segments';
 import { RiderOnNetwork, straightest } from '../world/rider';
 import { sanitizeSave, type SaveData } from '../world/saveGame';
@@ -33,6 +33,8 @@ import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
 import { GraphicsController } from './graphics';
 import { SoundEngine } from './audio';
+import { NoDevice } from '../device/NoDevice';
+import { ARCADE_LEVELS_KMH, ARCADE_MAX_LEVEL } from '../engine/arcade';
 import { seaNearness, soundMix } from './soundMix';
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from './weatherCycle';
 import { nordkapMask, steppeMask } from '../world/terrainGen';
@@ -71,7 +73,14 @@ async function main() {
   const fog = new FogGrid(world.terrain.size, 20, save?.fog);
   const progress = new GameProgress(pois, save ?? undefined);
   const segments = resolveSegments(world.roads);
-  const tracker = new SegmentTracker(segments, save?.segments);
+  // Bestzeiten getrennt: Fahrten am Rad bzw. im Simulator und Arcade-Fahrten (Controller)
+  const trackers = {
+    rad: new SegmentTracker(segments, save?.segments),
+    arcade: new SegmentTracker(segments, save?.arcadeSegments),
+  };
+  let tracker = trackers.rad;
+  /** Arcade-Modus: Tempo per Tempomat am Controller, kein Gerät. */
+  let arcade = false;
   const knownAchievements = new Set(ACHIEVEMENTS.map((a) => a.id));
   const unlocked = new Set((save?.achievements ?? []).filter((id) => knownAchievements.has(id)));
   let bonusXp = save?.bonusXp ?? 0;
@@ -272,7 +281,8 @@ async function main() {
       fog: fog.cells.slice(),
       achievements: [...unlocked],
       bonusXp,
-      segments: Object.fromEntries(tracker.records),
+      segments: Object.fromEntries(trackers.rad.records),
+      arcadeSegments: Object.fromEntries(trackers.arcade.records),
     };
   }
 
@@ -348,9 +358,20 @@ async function main() {
     if (s !== 'connected' && session && !session.isPaused) pause('Verbindung unterbrochen');
   }
 
-  async function startRide(kind: 'mock' | 'kettler') {
+  async function startRide(kind: 'mock' | 'kettler' | 'arcade') {
+    if (session) return;
     try {
-      if (kind === 'mock') {
+      if (kind === 'arcade') {
+        // Kein Gerät: Es wird nie Leistung gesendet
+        device = new NoDevice();
+        engine.setMode('arcade');
+        engine.setCruise(0);
+        arcade = true;
+        tracker = trackers.arcade;
+        document.body.classList.add('arcade');
+        $('h-gear-label').textContent = 'Stufe';
+        $('h-target-label').textContent = 'Wunsch-km/h';
+      } else if (kind === 'mock') {
         const mock = new MockDevice();
         cleanup.push(mock.attachKeyboard(window, GAME_KEYS));
         device = mock;
@@ -370,7 +391,7 @@ async function main() {
     $('tp-sim').hidden = kind !== 'mock';
     session = new RideSession(engine, device, { gradeProvider: () => rider.grade });
     session.start();
-    recorder = new RideRecorder(Date.now(), kind === 'mock' ? 'simulator' : 'kettler', nearestPlace());
+    recorder = new RideRecorder(Date.now(), kind === 'mock' ? 'simulator' : kind, nearestPlace());
     lastDistance = engine.state().distance;
     menu.hidden = true;
     estopBtn.hidden = false;
@@ -379,10 +400,15 @@ async function main() {
       toasts.show('Willkommen zurück', `Spielstand geladen · Level ${lvl}`);
       if (retroactive > 0) toasts.show(`${retroactive} Erfolge nachgetragen`, 'für deine bisherigen Fahrten', 'gold');
     }
+    if (arcade) toasts.show('Arcade-Modus', 'A/RT schneller · B/LT langsamer · X ausrollen (Tastatur W/S/X)');
   }
 
   function pause(title = 'Pause', text = 'Widerstand ist auf dem Minimum.') {
     if (!session) return;
+    if (arcade) {
+      engine.setCruise(0);
+      if (text.startsWith('Widerstand')) text = 'Arcade-Modus: Weiter mit Start oder A.';
+    }
     session.pause();
     $('paused-title').textContent = title;
     $('paused-text').textContent = text;
@@ -442,6 +468,7 @@ async function main() {
 
   function emergencyStop() {
     device?.emergencyStop();
+    if (arcade) engine.setCruise(0);
     pause('Notstopp', 'Widerstand wurde sofort auf das Minimum gesetzt.');
   }
 
@@ -478,12 +505,39 @@ async function main() {
 
   $('start-mock').addEventListener('click', () => void startRide('mock'));
   $('start-kettler').addEventListener('click', () => void startRide('kettler'));
+  $('start-arcade').addEventListener('click', () => void startRide('arcade'));
   $('resume').addEventListener('click', resume);
   estopBtn.addEventListener('click', emergencyStop);
   bigmap.addEventListener('click', () => toggleMap(false));
 
+  /** Arcade: Tempomat eine Stufe hoch oder runter (0 = ausrollen). */
+  function cruise(step: number | 'coast') {
+    if (!arcade || !session || session.isPaused) return;
+    const before = engine.cruiseLevel;
+    engine.setCruise(step === 'coast' ? 0 : before + step);
+    if (engine.cruiseLevel !== before) sound.play('shift');
+  }
+
   input.on((a: Action) => {
+    // Startmenü mit dem Controller: A oder Start beginnt eine Arcade-Fahrt
+    if (!session && !menu.hidden && (a === 'confirm' || a === 'pause')) {
+      void startRide('arcade');
+      return;
+    }
     switch (a) {
+      case 'confirm':
+        if (session?.isPaused) resume();
+        else cruise(1);
+        break;
+      case 'faster':
+        cruise(1);
+        break;
+      case 'slower':
+        cruise(-1);
+        break;
+      case 'coast':
+        cruise('coast');
+        break;
       case 'estop':
         if (!bigmap.hidden) toggleMap(false);
         emergencyStop();
@@ -577,8 +631,19 @@ async function main() {
       viewpointTotal: progress.viewpointTotal,
       explored: fog.fraction(landCells),
       exploredKm2: fog.countRevealed(anyLand) * cellKm2,
-      segments: tracker.records,
+      // Erfolge zählen Fahrten aus beiden Wertungen
+      segments: mergedRecords(),
     };
+  }
+
+  function mergedRecords(): Map<string, SegmentRecord> {
+    const out = new Map<string, SegmentRecord>();
+    for (const seg of segments) {
+      const a = trackers.rad.record(seg.id);
+      const b = trackers.arcade.record(seg.id);
+      out.set(seg.id, { ...a, runs: a.runs + b.runs, improvements: a.improvements + b.improvements });
+    }
+    return out;
   }
 
   function currentXp(s = stats()): number {
@@ -715,8 +780,14 @@ async function main() {
     hud.cadence.textContent = String(Math.round(s.cadence));
     hud.hr.textContent = s.heartRate > 0 ? String(Math.round(s.heartRate)) : '–';
     hud.grade.textContent = `${(rider.grade * 100).toFixed(1)} %`;
-    hud.gear.textContent = `${s.gearIndex + 1}/${engine.gears.ratios.length}`;
-    hud.target.textContent = String(device?.sentPower ?? s.targetPower);
+    if (arcade) {
+      // Tempomat statt Gang, Wunschtempo statt Zielwatt
+      hud.gear.textContent = `${engine.cruiseLevel}/${ARCADE_MAX_LEVEL}`;
+      hud.target.textContent = engine.cruiseLevel === 0 ? 'rollen' : String(ARCADE_LEVELS_KMH[engine.cruiseLevel]);
+    } else {
+      hud.gear.textContent = `${s.gearIndex + 1}/${engine.gears.ratios.length}`;
+      hud.target.textContent = String(device?.sentPower ?? s.targetPower);
+    }
     hud.dist.textContent = (s.distance / 1000).toFixed(2);
     hud.elev.textContent = String(Math.round(s.elevationGain));
     hud.time.textContent = fmtTime(s.timeSec);
@@ -1004,7 +1075,7 @@ async function main() {
 
   // --- Entwicklung: ?demo startet sofort den Simulator (nie das echte Gerät) ----------
   if (demo) {
-    await startRide('mock');
+    await startRide(params.has('arcade') ? 'arcade' : 'mock');
     const started = device as TrainerDevice | null;
     if (started instanceof MockDevice) started.cadence = Number(params.get('cadence') ?? 85);
     const skip = Number(params.get('skip') ?? 0);

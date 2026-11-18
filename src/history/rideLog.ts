@@ -27,7 +27,8 @@ export interface RideTrack {
   alt: number[];
 }
 
-export type RideDevice = 'simulator' | 'kettler';
+/** Womit gefahren wurde; 'arcade' = Controller ohne Gerät (Leistung nur geschätzt). */
+export type RideDevice = 'simulator' | 'kettler' | 'arcade';
 
 export interface RideSummary {
   distance: number;
@@ -228,6 +229,6 @@ export function exportFileName(meta: RideMeta, ext: 'tcx' | 'fit'): string {
 /** Beschreibung für Notizen im Export. */
 export function rideDescription(meta: RideMeta): string {
   const where = meta.startPlace ? ` ab ${meta.startPlace}` : '';
-  const dev = meta.device === 'kettler' ? 'Kettler E5' : 'Simulator';
+  const dev = meta.device === 'kettler' ? 'Kettler E5' : meta.device === 'arcade' ? 'Arcade, Leistung geschätzt' : 'Simulator';
   return `Freeride NG – virtuelle Fahrt auf Velara${where} (${dev})`;
 }

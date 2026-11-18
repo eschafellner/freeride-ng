@@ -4,6 +4,8 @@
  *
  * Gamepad: Steuerkreuz/linker Stick ←/→ Abzweigung, ↑ geradeaus, ↓ Kehrtwende,
  * LB/RB schalten, Start Pause, Back/Select Karte, Y Fahrradlicht.
+ * Arcade-Modus: A oder RT schneller, B oder LT langsamer, X ausrollen (Stufe 0);
+ * auf der Tastatur W/S und X. Im Startmenü startet A oder Start eine Arcade-Fahrt.
  */
 
 export type Action =
@@ -18,7 +20,12 @@ export type Action =
   | 'estop'
   | 'testPanel'
   | 'graphics'
-  | 'light';
+  | 'light'
+  | 'faster'
+  | 'slower'
+  | 'coast'
+  /** Gamepad A: im Menü bestätigen, im Arcade-Modus schneller. */
+  | 'confirm';
 
 const KEYS: Record<string, Action> = {
   ArrowLeft: 'turnLeft',
@@ -35,6 +42,9 @@ const KEYS: Record<string, Action> = {
   t: 'testPanel',
   g: 'graphics',
   l: 'light',
+  w: 'faster',
+  s: 'slower',
+  x: 'coast',
 };
 
 const PAD_BUTTONS: Record<number, Action> = {
@@ -47,6 +57,11 @@ const PAD_BUTTONS: Record<number, Action> = {
   9: 'pause',
   8: 'map',
   3: 'light',
+  0: 'confirm',
+  1: 'slower',
+  2: 'coast',
+  6: 'slower',
+  7: 'faster',
 };
 
 const STICK_THRESHOLD = 0.6;

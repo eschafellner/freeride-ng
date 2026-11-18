@@ -31,10 +31,11 @@ CP2102-Adapter als `/dev/ttyUSB0`, aber das Cockpit antwortet bisher auf keinen 
 | Phase 6, Schritt 5: Spiegelseen mit Seebrücke (ab Level 4) | ✅ |
 | Phase 6, Schritt 6: Nordkap mit Leuchtturm (ab Level 5), Welt 7,2 × 7,2 km | ✅ |
 | Phase 6, Schritt 7: Wetter (optisch) und Sound (Web Audio) | ✅ |
+| Arcade-Modus: Controller ohne Gerät, Tempomat in Stufen | ✅ |
 | Phase 7, Schritt 1: Fahrten-Historie, Export als TCX und FIT | ✅ |
 | Phase 7: Workouts (ERG, `.zwo`) | ⏭ offen (erst nach Phase 0 sinnvoll) |
 
-Qualität: 253 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 262 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -55,6 +56,8 @@ npm test             # Tests
 - Nordkap: `/?demo&edge=leuchtturmweg&s=60` (Leuchtturm), `&edge=klippenstrasse&s=900` (unter dem Kogel),
   `&edge=robbenstrasse&s=100` (Kapdorf), nachts mit `&uhr=21.5` (Lichtstrahl). Schranken:
   `&edge=obersee-n&s=10&locked` (Oberseeblick), `&edge=heideweg&s=1640&locked` (Glutplateau)
+- Arcade-Modus: Startmenü → „Arcade-Modus“ oder am Controller A/Start, Demo `/?demo&arcade`
+  (A/RT schneller, B/LT langsamer, X ausrollen; Tastatur W/S/X). Sendet nie etwas ans Rad
 - Wetter: `&wetter=regen|nebel|bedeckt|bewoelkt|heiter|klar` (fest), Grafikmenü: „Wechselnd“ oder „Immer schön“
 - Ton: startet nach der ersten Taste oder dem ersten Klick, Lautstärke im Grafikmenü (`G`), Testanzeige zeigt den Stand
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
@@ -128,6 +131,11 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 **Tag-Nacht-Wechsel selbst prüfen:**
 - Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
 - Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
+
+**Arcade-Modus selbst prüfen:**
+- Mit dem Controller am Lenker fahren: Tasten passend? Stufen (12–42 km/h) und Bergbremse angenehm?
+  Werte in `src/engine/arcade.ts` (`ARCADE_LEVELS_KMH`, `arcadeHillFactor`)
+- Bestzeiten im Arcade-Modus stehen getrennt von denen am Rad; XP und Erfolge zählen gemeinsam
 
 **Wetter und Sound selbst prüfen:**
 - Eine längere Fahrt: Wechselt das Wetter angenehm (alle 4–9 Minuten)? Ist Regen oder Nebel zu dicht?

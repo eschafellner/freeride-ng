@@ -18,6 +18,8 @@ export interface SaveData {
   bonusXp: number;
   /** Phase 5: Bestzeiten und Ghosts je Segment. */
   segments: Record<string, SegmentRecord>;
+  /** Arcade-Modus (Controller): eigene Bestzeiten und Ghosts, getrennt von Fahrten am Rad. */
+  arcadeSegments: Record<string, SegmentRecord>;
 }
 
 function sanitizeRecord(v: unknown): SegmentRecord | null {
@@ -33,6 +35,14 @@ function sanitizeRecord(v: unknown): SegmentRecord | null {
     if (r.ghost instanceof Float32Array && r.ghost.length > 0) rec.ghost = r.ghost;
   }
   return rec;
+}
+
+function sanitizeRecords(v: unknown): Record<string, SegmentRecord> {
+  return Object.fromEntries(
+    Object.entries(v && typeof v === 'object' ? v : {})
+      .map(([id, r]) => [id, sanitizeRecord(r)] as const)
+      .filter((e): e is [string, SegmentRecord] => e[1] !== null),
+  );
 }
 
 /**
@@ -75,10 +85,7 @@ export function sanitizeSave(raw: unknown, world: World): SaveData | null {
     fog: s.fog instanceof Uint8Array ? s.fog : new Uint8Array(0),
     achievements: strings(s.achievements),
     bonusXp: num(s.bonusXp),
-    segments: Object.fromEntries(
-      Object.entries(s.segments && typeof s.segments === 'object' ? s.segments : {})
-        .map(([id, r]) => [id, sanitizeRecord(r)] as const)
-        .filter((e): e is [string, SegmentRecord] => e[1] !== null),
-    ),
+    segments: sanitizeRecords(s.segments),
+    arcadeSegments: sanitizeRecords(s.arcadeSegments),
   };
 }

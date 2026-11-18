@@ -18,8 +18,8 @@
       </div>
       <div class="hud-side">
         <div class="m"><span id="h-grade">0.0 %</span><small>Steigung</small></div>
-        <div class="m"><span id="h-gear">–</span><small>Gang</small></div>
-        <div class="m"><span id="h-target">–</span><small>Ziel-W</small></div>
+        <div class="m"><span id="h-gear">–</span><small id="h-gear-label">Gang</small></div>
+        <div class="m"><span id="h-target">–</span><small id="h-target-label">Ziel-W</small></div>
         <div class="m"><span id="h-dist">0.00</span><small>km</small></div>
         <div class="m"><span id="h-elev">0</span><small>Hm</small></div>
         <div class="m"><span id="h-time">0:00</span><small>Zeit</small></div>
@@ -80,7 +80,7 @@
 
     <div id="menu" class="panel">
       <h1>Freeride NG <span>Velara</span></h1>
-      <p class="sub">Erkunde Lumen und das Rebland</p>
+      <p class="sub">Erkunde die Insel Velara</p>
       <div id="save-info" class="save-info" hidden>
         <span id="save-text"></span>
         <button id="new-game" class="link">Neu beginnen</button>
@@ -88,6 +88,7 @@
       <div class="choices">
         <button id="start-mock" class="primary">Mit Simulator fahren</button>
         <button id="start-kettler">Mit Kettler E5 fahren (USB)</button>
+        <button id="start-arcade">Arcade-Modus (Controller, ohne Gerät)</button>
       </div>
       <button id="open-graphics" class="link graphics-link">Grafik-Einstellungen <kbd>G</kbd></button>
       <button id="open-history" class="link graphics-link">Fahrten-Historie und Export (TCX/FIT)</button>
@@ -100,12 +101,13 @@
         <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>leichter / schwerer schalten</td></tr>
         <tr><td><kbd>M</kbd> · <kbd>P</kbd></td><td>Karte · Pause</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Notstopp (Widerstand sofort aufs Minimum)</td></tr>
-        <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5</td></tr>
+        <tr><td><kbd>W</kbd> / <kbd>S</kbd></td><td>Simulator: Kadenz ±5 · Arcade: Tempomat ± (<kbd>X</kbd> ausrollen)</td></tr>
         <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>Simulator: stärker / schwächer treten (±100 W)</td></tr>
         <tr><td><kbd>T</kbd></td><td>Testanzeige ein/aus</td></tr>
         <tr><td><kbd>G</kbd></td><td>Grafik-Einstellungen</td></tr>
       </table>
-      <p class="hint">Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.</p>
+      <p class="hint">Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
+        Arcade (ohne Gerät, sendet nichts ans Rad): A oder Start beginnt, A/RT schneller, B/LT langsamer, X ausrollen.</p>
       <p class="hint"><a href="/debug.html">Geräte-Debug-Seite</a></p>
     </div>
 

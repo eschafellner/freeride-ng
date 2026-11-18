@@ -129,6 +129,7 @@ export class HistoryPanel {
       title.append(el('strong', undefined, rideTitle(r)));
       if (r.startPlace) title.append(el('span', 'ride-place', ` · ${r.startPlace}`));
       if (r.device === 'simulator') title.append(el('span', 'ride-badge', 'Simulator'));
+      if (r.device === 'arcade') title.append(el('span', 'ride-badge', 'Arcade'));
       if (r.id === this.currentId()) title.append(el('span', 'ride-badge live', 'läuft'));
       const s = r.summary;
       const stats = el('div', 'ride-stats',

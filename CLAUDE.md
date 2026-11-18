@@ -12,7 +12,7 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
     `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera, `&hud=radcomputer`, `&stats` schreibt Zeichenaufrufe
     und die größten Meshes in die Konsole, `&locked` lässt gesperrte Gebiete zu, `&uhr=21.5` setzt die Tageszeit,
     `&licht` schaltet das Fahrradlicht ein, `&tag` mit `&quality=` erzwingt „Immer Tag“, `&wetter=regen|nebel|…` feste Wetterlage,
-    `&ton` startet den Ton ohne Eingabe, falls der Browser es erlaubt); Debug: `/debug.html`
+    `&ton` startet den Ton ohne Eingabe, falls der Browser es erlaubt, `&arcade` startet den Arcade-Modus statt des Simulators); Debug: `/debug.html`
   - `?demo` lädt und speichert nie (schützt den echten Spielstand) und öffnet alle Gebiete
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
@@ -34,9 +34,11 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   - `powerLimiter.ts` – Sicherheitsgrenzen für Zielwatt
   - `KettlerSerialDevice.ts` – Web-Serial-Treiber (Polling, PW-Taktung, Reconnect)
   - `MockDevice.ts` – Simulator mit Tastatursteuerung, für die Entwicklung ohne Rad
+  - `NoDevice.ts` – „kein Gerät“ für den Arcade-Modus (sendet nie Leistung)
 - `src/engine/` – Ride-Engine, reines TS ohne UI/Gerät
   - `physics.ts` – Leistungsmodell, Gleichgewichtstempo, Fahrdynamik (Steigung als Anteil: 0.05 = 5 %)
   - `gears.ts` – virtuelle Gänge
+  - `arcade.ts` – Arcade-Modus: Tempomat in Stufen, vereinfachte Steigung (Controller ohne Gerät)
   - `rideEngine.ts` – Messwerte + Steigung → Tempo, Distanz, Höhenmeter, Zielwatt
   - `fixedStepLoop.ts`, `rideSession.ts` – 20 Hz Physik, 1 Hz Zielwatt ans Gerät
 - `src/world/` – Weltmodell, reines TS ohne Three.js (testbar)

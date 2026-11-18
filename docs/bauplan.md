@@ -309,6 +309,21 @@ Offen aus den Spiegelseen:
 - [ ] Optional: Forsthaus als Gebäude, Bootssteg mit Ruderbooten in Seedorf, Schilf am Ufer, Spiegelung der Bäume im Wasser
 - [x] Das Wegenetz ist kürzer als im Weltentwurf geplant (9,7 statt 15 km); die Verbindung zum Nordkap gibt es jetzt (Nordstraße am Oberseeblick)
 
+**18.11.2026, Arcade-Modus (Controller ohne Gerät)** (Vorgaben: für Sofa und für den E5 ohne Verbindung, Tempomat in Stufen, vereinfachte Physik, XP zählen, Bestzeiten getrennt):
+- Startmenü → „Arcade-Modus (Controller, ohne Gerät)“, am Controller startet A oder Start. Demo: `/?demo&arcade`
+- Tempomat in 6 Stufen (12–42 km/h), Stufe 0 = ausrollen. Gamepad A/RT schneller, B/LT langsamer, X ausrollen; Tastatur W/S/X. Richtungswahl, Karte, Pause und Licht wie bisher
+- Vereinfachte Physik (`src/engine/arcade.ts`, getestet): 10 % bergauf → 75 % des Wunschtempos, 10 % bergab → 125 %, Gänge spielen keine Rolle, sanftes Beschleunigen. In Stufe 0 rollt man aus, bergab rollt man weiter. Engine-Modus `arcade`
+- Kein Gerät: `NoDevice` (`src/device/`) sendet nie Leistung. Wer auf dem E5 sitzt, stellt den Widerstand am Cockpit selbst ein
+- Leistung und Trittfrequenz sind nur geschätzt (für Anzeige, Figur, Freilauf-Geräusch und Historie). Das HUD zeigt Stufe und Wunschtempo statt Gang und Zielwatt
+- Wertung: Kristalle, XP, Level, Gebiete und Erfolge zählen. Segment-Bestzeiten und Ghosts werden getrennt gespeichert (`arcadeSegments` im Spielstand), Erfolge zählen Segmentfahrten aus beiden. In der Historie steht „Arcade“, im Export „Arcade, Leistung geschätzt“
+- Menüs scrollen auf kleinen Bildschirmen, statt oben abgeschnitten zu werden
+- 262 Tests grün
+
+Offen aus dem Arcade-Modus:
+
+- [ ] Mit dem eigenen Controller ausprobieren: Passen die Tasten (Xbox-Belegung der Gamepad API)? Fühlen sich die Stufen gut an (`ARCADE_LEVELS_KMH`)?
+- [ ] Optional: Fahrt beenden und Menüs ganz mit dem Controller bedienen, Ghost der Rad-Bestzeit auch im Arcade-Modus zeigen
+
 **18.11.2026, Phase 6 abgeschlossen: Wetter und Sound:**
 - **Wetter** (rein optisch, keine Folgen für Tempo oder Zielwatt): Lagen Klar, Heiter, Bewölkt, Bedeckt, Nebel, Regen. Jede hält 4–9 Minuten Fahrzeit, Übergänge dauern 90 s, die Zeit läuft nur während der Fahrt. Das Wetter wechselt schrittweise (Regen nur nach Bedeckt), jede Fahrt beginnt heiter. Rechnung in `src/game/weatherCycle.ts` (getestet), Ablauf in `weather.ts`
 - Wirkung: Wolkenbedeckung (90 Wolken, die je nach Bedeckung weich auf- und abtauchen und größer werden, `CLOUD_COVER` in `scene.ts`), grauer Himmel, gedämpfte Sonne und Schatten, Nebel mit kurzer Sicht, Regen als Striche um die Kamera (`rain.ts`, ein Zeichenaufruf), nachts keine Sterne hinter Wolken. Das Wetter liegt über dem Tag-Nacht-Zyklus (`applyWeather`)

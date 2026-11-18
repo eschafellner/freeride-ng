@@ -58,6 +58,10 @@ html, body {
   padding: 24px 28px;
   border-radius: 14px;
   width: min(460px, calc(100% - 32px));
+  /* Auf kleinen Bildschirmen scrollen statt oben abschneiden */
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
 }
 .panel[hidden] { display: none; }
