@@ -3,6 +3,7 @@
 Eine eigene, frei erfundene Insel, die fürs Radfahren entworfen ist. Leitideen:
 klar unterscheidbare Regionen, ein markanter Gipfel als Langzeitziel, Brücken als
 Tore zu neuen Gebieten, und jede Region hat ein eigenes Steigungsprofil.
+Die Welt ist inzwischen **7,2 × 7,2 km** groß (Raster 10 m), die Insel selbst etwa 5 × 4,6 km.
 Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitstitel.
 
 ## Maßstab
@@ -23,7 +24,7 @@ Der Inselname „Velara“ steht fest, die Namen der Regionen sind noch Arbeitst
 | 3 | **Spiegelseen** | Nordwesten | Wald, drei Seen, Ufer-Rundweg, Seebrücke | 0–3 %, kurze Rampen bis 6 % | 150–180 m | ~9,7 km | 6 ✅ |
 | 4 | **Hoher Kogel** | Norden, über Rebland | einzelner Berg, Serpentinen, Gipfel mit Aussicht | 6–10 % | bis 690 m | ~14,5 km | 6 ✅ |
 | 5 | **Glutsteppe** | Osten | trocken, rote Felsen, weite Sicht, Canyon | 0–4 %, lange Geraden | 10–200 m | ~7,5 km (erste Ausbaustufe) | 6 ✅ |
-| 6 | **Nordkap** | Nordküste | Klippen, Leuchtturm, Küstenstraße | wellig 3–8 % | 20–180 m | ~12 km | 6 |
+| 6 | **Nordkap** | Nordküste | Klippen, Leuchtturm, Buchten, Küstenstraße | wellig 3–8 %, kurze Rampen bis 10 % | 130–180 m, Strände unten | ~7,3 km | 6 ✅ |
 
 **Brücken und Tore:** Die Hafenbrücke verbindet Lumen mit der Glutsteppe. Die Seebrücke
 führt über den größten der Spiegelseen. Der Passweg verbindet Rebland mit dem Fuß des
@@ -134,6 +135,37 @@ x ≈ −2720). Die Hochfläche fällt dort über einen breiten, bewaldeten Stei
 - Formen zum Nachbessern: Seen in `src/world/lakes.ts` (`LAKES`: Becken als gedrehte
   Ellipsen, Wasserhöhe, Tiefe), Hochfläche in `terrainGen.ts` (`SEENLAND`, `seenMask`).
   Wasser der Seen in `water.ts` (gleicher Shader wie das Meer, ruhiger und dunkler).
+
+## Nordkap (Phase 6, ab Level 5)
+
+Umgesetzt im November 2026. Dafür wurde die Welt von 6 auf **7,2 km** vergrößert, und die
+**Nordküste wölbt sich** zwischen Obersee und Ostküste um gut 400 m nach Norden
+(`northCoastZ` in `terrainGen.ts`). Südlich der alten Küstenlinie bleibt das Gelände exakt wie
+vorher (getestet), Kogel, Spiegelseen und Glutsteppe sind unverändert.
+
+- **Lage:** Nordküste, von den Spiegelseen bis an die Ostküste, nördlich vom Hohen Kogel.
+  Zwei Zugänge mit Schranke bis Level 5: die **Nordstraße** am **Oberseeblick** (Spiegelseen)
+  und der **Heideweg** am **Glutplateau** (Glutsteppe). So entsteht eine große Inselrunde
+  Lumen → Rebland → Spiegelseen → Nordkap → Glutsteppe → Hafenbrücke → Lumen.
+- **Gelände:** windige Hochfläche (130–180 m) mit Küstenheide (Erika-Flecken, Moos, wenige
+  geduckte Kiefern, Felsbrocken), zur Küste hin etwas tiefer. Senkrechte, dunkle **Klippen**
+  fallen 130–150 m ins Meer. Unter dem Kogel reicht seine Nordflanke bis an die Klippen.
+  Drei **Buchten** schneiden tief ein, unten liegt jeweils ein Sandstrand:
+  - **Möwenbucht** im Westen (Aussichtspunkt)
+  - **Kapbucht** unter **Kapdorf** (Dorf mit Läden), mit Holzsteg und Fischerbooten
+  - **Robbenbucht** im Osten, mit Robben am Strand
+  - Das **Kap** ragt am weitesten hinaus, darauf der **Leuchtturm** (rot-weiß, ≈ 25 m) mit
+    Wärterhaus. Nachts kreist ein Lichtstrahl. Möwen ziehen über Kap und Buchten
+- **Wege (≈ 7,3 km):** Nordstraße (Oberseeblick → Möwenbucht), Klippenstraße (→ Kapkreuz,
+  Sprintzone), Leuchtturmweg (Stichweg zum Kap), Kapstraße (→ Kapdorf), Robbenstraße,
+  Ostklippen und Heidestraße (Rundkurs über Kapdorf, Zeitfahren **Kaprunde**), Heideweg
+  hinunter zum Glutplateau. Wellig mit im Mittel 5 %, die Ostklippen sind eine kurze Rampe
+  (≈ 8 %). Stützpunkte in `src/world/nordkapLayout.ts`.
+- **Orte und Punkte:** Kapdorf, Aussichtspunkte Nordkap (Leuchtturm) und Möwenbucht, 5 Kristalle,
+  Erfolge „Rauer Norden“ (Kaprunde) und „Mit dem Wind“ (Klippenstraße).
+- Formen zum Nachbessern in `terrainGen.ts`: `NORDKAP` (Ausbuchtung, wie tief die Kante liegt),
+  `CAPE` (Kap), `COVES` (Buchten), `nordkapRelief` (Wellen der Hochfläche). Farben in
+  `terrainMesh.ts` (`heath`, `heather`, `cliff`), Ausstattung in `src/game/nordkap.ts`.
 
 ## Datenformat (Vorschlag für Phase 3)
 

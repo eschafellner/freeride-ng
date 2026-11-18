@@ -52,7 +52,8 @@ export const SEEN_NODES: LayoutNode[] = [
   { id: 'seesteg-s', x: -1913, z: -1824, region: 'seen' },
   { id: 'seesteg-n', x: -2082, z: -2071, region: 'seen' },
   at('oberseeost', shorePoint('obersee', 0, 0, 55)),
-  at('oberseeblick', shorePoint('obersee', 0, -95, 45), 'Oberseeblick'),
+  // Schranke zum Nordkap (ab Level 5): die Nordstraße zweigt hier ab
+  { ...at('oberseeblick', shorePoint('obersee', 0, -95, 45), 'Oberseeblick'), gate: true },
   at('oberseewest', shorePoint('obersee', 0, 180, 55)),
 ];
 

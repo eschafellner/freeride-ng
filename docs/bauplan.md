@@ -275,7 +275,7 @@ Offen aus dem Hohen Kogel:
 
 - [ ] Am echten Rad fahren: Sind 7 % im Mittel (Gipfelstraße und Westrampe ≈ 8 %) mit der Schwierigkeit 50 % angenehm? Sonst die Stützpunkte länger ziehen
 - [ ] Kehren mit Leitplanke oder Mauer an der Außenseite, Almhütte als Café/Laden (mit dem Ladensystem), Hütte nachts beleuchtet
-- [ ] Die große Karte zeigt viel Meer im Süden (die Insel sitzt nicht mittig im 6-km-Quadrat)
+- [x] Die große Karte zeigt viel Meer im Süden (jetzt mittig auf die Insel ausgerichtet, siehe Nordkap)
 
 **17.11.2026, Phase 7 begonnen: Fahrten-Historie und Export:**
 - Aufzeichnung (`src/history/rideLog.ts`, `RideRecorder`): ein Messpunkt pro Sekunde Fahrzeit mit Uhrzeit, Fahrzeit, Strecke, Tempo, Leistung, Trittfrequenz, Puls und Höhe. Pausen bleiben als Lücke in der Uhrzeit, die Fahrzeit läuft dann nicht weiter. Zusammenfassung mit Ø/max. Leistung, Tempo, Kadenz, Puls, Höhenmetern und Arbeit (kJ)
@@ -307,7 +307,24 @@ Offen aus den Spiegelseen:
 - [ ] Am echten Rad fahren: Ist das Gebiet angenehm flach? Kurze Rampen bis 6 % gibt es zwischen den Seen (Ostuferweg) und am Seeweg (bis 10 %, Übergang von Rebland)
 - [ ] Wasserfarbe der Seen am echten Bildschirm prüfen (`uShallow`/`uDeep` und Spiegelung in `water.ts`), headless nur mit Software-Rendering geprüft
 - [ ] Optional: Forsthaus als Gebäude, Bootssteg mit Ruderbooten in Seedorf, Schilf am Ufer, Spiegelung der Bäume im Wasser
-- [ ] Das Wegenetz ist kürzer als im Weltentwurf geplant (9,7 statt 15 km); bei Bedarf eine Verbindung zum Nordkap
+- [x] Das Wegenetz ist kürzer als im Weltentwurf geplant (9,7 statt 15 km); die Verbindung zum Nordkap gibt es jetzt (Nordstraße am Oberseeblick)
+
+**18.11.2026, Phase 6: Nordkap** (Vorgaben aus dem Gespräch: ab Level 5, zwei Zugänge für eine Rundtour):
+- Welt von 6 auf **7,2 km** vergrößert (gleiches 10-m-Raster). Die Nordküste wölbt sich zwischen Obersee und Ostküste um gut 400 m nach Norden (`northCoastZ`, `NORDKAP`, `CAPE`, `COVES` in `terrainGen.ts`). Südlich der alten Küstenlinie ist das Gelände unverändert: alle bisherigen Wege haben exakt die gleichen Höhen (geprüft), `nordkapMask` ist dort 0 (getestet). Erkundungsnebel alter Spielstände wird mittig übernommen (getestet)
+- Gelände: windige Hochfläche (130–180 m) mit Küstenheide, senkrechte Klippen, drei tief eingeschnittene Buchten mit Strand (Möwenbucht, Kapbucht, Robbenbucht), das Kap ragt am weitesten hinaus. Farben und Bewuchs in `terrainMesh.ts` und `props.ts`
+- Wege in `src/world/nordkapLayout.ts` (≈ 7,3 km, wellig, im Mittel 5 %): Nordstraße, Klippenstraße, Leuchtturmweg, Kapstraße, Robbenstraße, Ostklippen, Heidestraße, Heideweg. Schranken am **Oberseeblick** und am **Glutplateau**: Torknoten können jetzt selbst in einem Gebiet liegen, die Schranke steht dann auf dem Weg ins gesperrte Gebiet
+- Ausstattung (`src/game/nordkap.ts`): Leuchtturm mit Wärterhaus, nachts leuchtende Laterne und kreisender Lichtstrahl, Holzsteg und Fischerboote in der Kapbucht, Robben in der Robbenbucht, kreisende Möwen. Kapdorf als Dorf mit Läden
+- Zeitfahren **Kaprunde** (≈ 2,2 km über Kapdorf), Sprintzone **Klippenstraße**, Erfolge „Rauer Norden“ und „Mit dem Wind“, 5 Kristalle (jetzt 35), Aussichtspunkte Nordkap und Möwenbucht
+- Große Karte zeigt jetzt die Insel mittig statt des ganzen Quadrats. Das Wellengitter des Meeres deckt die ganze Insel ab (vorher fehlten an West- und Nordküste die Wellen)
+- Fix: Die Schrankenbalken lagen längs statt quer zur Straße (alle Gebiete)
+- 238 Tests grün (neu: Gebiet und Schranken, Küste und Kap, Buchten mit Strand, Gelände außerhalb unverändert, Küstenstraße, Kaprunde, Nebel 6 → 7,2 km)
+
+Offen aus dem Nordkap:
+
+- [ ] Am echten Rad fahren: Passt das Wellige? Die Ostklippen (Robbenbucht → Heidekreuz) sind eine kurze Rampe mit ≈ 8 %
+- [ ] Gefallen Klippen, Buchten und Heide? Werte in `NORDKAP`/`COVES` und Farben `heath`, `heather`, `cliff`
+- [ ] Leuchtturm nachts prüfen: Lichtstrahl zu hell oder zu blass? (`beamMat.opacity` in `nordkap.ts`)
+- [ ] Optional: Weg hinunter zum Strand in der Kapbucht, Wetter (Nebel, Wind) passt gut zum Nordkap
 
 **13.11.2026, Phase 6: Tag-Nacht-Wechsel** (Vorgaben aus dem Gespräch):
 - Im Grafikmenü wählbar: **Tag-Nacht-Zyklus** (Standard) oder **Immer Tag** (sieht aus wie vorher)
@@ -337,7 +354,7 @@ Offen aus Phase 6 (bisher):
 - [ ] Optional: Lichtkegel der Laternen auf dem Boden, Mond mit Struktur
 - [x] Passweg zum Hohen Kogel (siehe unten)
 - [x] Spiegelseen (siehe oben)
-- [ ] Weitere Gebiete: Nordkap
+- [x] Weitere Gebiete: Nordkap (siehe oben)
 
 **13.11.2026, Häuser: Oberflächen, Dächer, Häuserzeilen:**
 - Oberflächen im Shader statt Bilddateien (`houseMaterial()` in `houses.ts`, Attribut `surf`): Putz mit Struktur und Flecken, Regenspuren unter der Traufe, Schmutz und Spritzwasser am Sockel, an manchen Häusern abgeplatzter Putz mit Ziegeln darunter. Dazu Dachziegel in versetzten Reihen mit Moos auf der Nordseite, Steinquader (Sockel, Fensterbänke, Eckquader), Holzbretter (Türen, Läden, Scheunen), Fachwerk mit Streben und Glas mit Himmelsspiegelung. Feine Muster blenden in der Ferne aus (gegen Flimmern)

@@ -4,7 +4,7 @@ import { fieldAt, REBLAND } from '../world/placement';
 import { mulberry32, smoothstep } from '../world/random';
 import type { RoadNetwork } from '../world/roadNetwork';
 import { nearestLake } from '../world/lakes';
-import { kogelMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
+import { kogelMask, nordkapMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
 import { NOISE_GLSL } from './shaderChunks';
 
 const COLORS = {
@@ -35,6 +35,12 @@ const COLORS = {
   lakeBedDeep: new THREE.Color('#4f5a48'),
   pebbles: new THREE.Color('#bdb08a'),
   shoreMeadow: new THREE.Color('#86b94e'),
+  // Nordkap: Küstenheide, dunkle Klippen
+  heath: new THREE.Color('#8a9a58'),
+  heather: new THREE.Color('#9a7a86'),
+  moss: new THREE.Color('#6f8a4a'),
+  cliff: new THREE.Color('#7d7770'),
+  cliffDark: new THREE.Color('#5f5a55'),
 };
 
 /** Höhen am Kogel in m: ab hier Almwiesen statt Wald, darüber Geröll und Fels. */
@@ -135,6 +141,21 @@ export function createTerrainMesh(
         const patch = Math.sin(cx / 37) * Math.cos(cz / 53) + r * 0.6;
         tmp.copy(patch > 0.5 ? COLORS.dryGrass : COLORS.ochre).lerp(COLORS.dust, r * 0.35);
         grass = patch > 0.5 ? 0.35 : 0.08;
+      }
+    }
+    // Nordkap: windige Küstenheide mit Erika-Flecken, dunkle Klippen zum Meer
+    else if (h < TREELINE - 60 && nordkapMask(cx, cz) > 0.5) {
+      if (mask > 0.15) {
+        tmp.copy(COLORS.verge).lerp(COLORS.heath, 0.5 + r * 0.3);
+        grass = 0.4;
+      } else if (Math.abs(n.y) < 0.75) {
+        // Schichten im Fels, unten dunkler
+        tmp.copy(Math.floor(h / 9) % 2 ? COLORS.cliff : COLORS.cliffDark).lerp(COLORS.rock, r * 0.3);
+        grass = 0;
+      } else {
+        const patch = Math.sin(cx / 33 + Math.cos(cz / 27)) * Math.cos(cz / 41 - Math.sin(cx / 23)) + (r - 0.5) * 0.8;
+        tmp.copy(patch > 0.45 ? COLORS.heather : patch < -0.5 ? COLORS.moss : COLORS.heath).lerp(COLORS.meadow, r * 0.2);
+        grass = patch > 0.45 ? 0.3 : 0.55;
       }
     }
     // Hoher Kogel oberhalb der Baumgrenze: Almwiesen, darüber Geröll und Fels

@@ -14,12 +14,12 @@ import { clamp, lerp, mulberry32, smoothstep } from './random';
 
 /**
  * Kantenlänge der Welt in m. Lumen und Rebland liegen im Bereich ±1500 m, die
- * Glutsteppe östlich davon, der Hohe Kogel im Norden. Das 10-m-Raster bleibt, damit
- * sich bestehende Gebiete beim Vergrößern nicht verändern.
+ * Glutsteppe östlich davon, der Hohe Kogel und das Nordkap im Norden. Das 10-m-Raster
+ * bleibt, damit sich bestehende Gebiete beim Vergrößern nicht verändern.
  */
-export const MVP_SIZE_M = 6000;
-/** 601 Punkte → 10 m Raster. */
-export const MVP_RES = 601;
+export const MVP_SIZE_M = 7200;
+/** 721 Punkte → 10 m Raster. */
+export const MVP_RES = 721;
 export const SEA_LEVEL = 0;
 
 /** Rechteck der Stadtfläche Lumen (weich ausgeblendet). */
@@ -62,8 +62,74 @@ export const MESAS = [
  */
 export const KOGEL = { x: 0, z: -2300, h: 525, foot: 1080, round: 0.25, southEnd: -1330 } as const;
 
-/** Nordküste (z-Wert der Küstenlinie, leicht gewellt). */
+/** Nordküste (z-Wert der Küstenlinie, leicht gewellt) westlich und östlich des Nordkaps. */
 export const NORTH_COAST_Z = -2880;
+
+// --- Nordkap (Nordküste, hinter Obersee und Glutplateau) -----------------------------
+
+/**
+ * Nordkap: Die Küste wölbt sich zwischen Obersee und Ostküste weit nach Norden. Die
+ * Hochfläche läuft weiter bis an hohe Klippen, an drei Buchten liegt unten ein Strand,
+ * und das Kap mit dem Leuchtturm ragt am weitesten hinaus. `bulge` ist die Ausbuchtung
+ * gegenüber `NORTH_COAST_Z`, `drop` wie viel tiefer die Klippenkante als die Hochfläche liegt.
+ */
+export const NORDKAP = { x0: -1500, x1: -900, x2: 1650, x3: 2250, bulge: 420, drop: 22 } as const;
+
+/** Das Kap mit dem Leuchtturm: ragt `reach` m über die Küste hinaus. */
+export const CAPE = { x: 380, width: 105, reach: 150 } as const;
+
+/** Buchten am Nordkap: Mitte der Küstenlinie (x), Tiefe ins Land und Breite in m. */
+export const COVES = [
+  { id: 'moewenbucht', x: -1020, depth: 120, width: 80 },
+  { id: 'kapbucht', x: 860, depth: 110, width: 85 },
+  { id: 'robbenbucht', x: 1560, depth: 120, width: 80 },
+] as const;
+
+/** Anteil der Ausbuchtung an einer Stelle x (0 … 1). */
+function nordkapSpan(x: number): number {
+  return smoothstep(NORDKAP.x0, NORDKAP.x1, x) * (1 - smoothstep(NORDKAP.x2, NORDKAP.x3, x));
+}
+
+/** Küstenlinie im Norden ohne Wellung (z, kleiner = weiter im Norden). */
+export function northCoastZ(x: number): number {
+  let z = NORTH_COAST_Z - NORDKAP.bulge * nordkapSpan(x);
+  z -= CAPE.reach * Math.exp(-(((x - CAPE.x) / CAPE.width) ** 2));
+  for (const c of COVES) z += c.depth * Math.exp(-(((x - c.x) / c.width) ** 2));
+  return z;
+}
+
+/** Strand am Ende einer Bucht (Mitte). */
+export function coveBeach(c: (typeof COVES)[number]): [number, number] {
+  return [c.x, northCoastZ(c.x) + 25];
+}
+
+/**
+ * 1 am Nordkap, 0 außerhalb. Das Nordkap ist das neue Land nördlich der alten Küste
+ * (`NORTH_COAST_Z`): Südlich davon bleibt das Gelände unverändert, damit Kogel und
+ * Obersee bleiben, wie sie sind. `oldNorthD` ist der Abstand zur alten Küste (gewellt).
+ */
+export function nordkapMask(x: number, z: number, oldNorthD = z - NORTH_COAST_Z): number {
+  return nordkapSpan(x) * smoothstep(45, -200, oldNorthD);
+}
+
+/**
+ * Änderung der Hochfläche am Nordkap: zur Küste hin etwas tiefer, sanfte Wellen für die
+ * Küstenstraße. Die Buchten setzt `generateTerrain` danach ein.
+ */
+function nordkapRelief(x: number, z: number, oldNorthD: number, noise: (x: number, z: number) => number): number {
+  return -NORDKAP.drop * smoothstep(0, -450, oldNorthD) + 9 * noise(x / 520 + 4.1, z / 520 - 1.7);
+}
+
+/** Strand in einer Bucht: flacher Grund (≈ 2 m) mit steilen Wänden, 0 … 1 Anteil. */
+function coveWeight(x: number, z: number): number {
+  let w = 0;
+  for (const c of COVES) {
+    const [bx, bz] = coveBeach(c);
+    const d = Math.hypot((x - bx) * 0.85, z - bz);
+    w = Math.max(w, 1 - smoothstep(40, 95, d));
+  }
+  return w;
+}
 
 /**
  * Höhenprofil des Kogels über dem Abstand (0 … 1 des Fußradius): 1 am Gipfel, 0 am Fuß.
@@ -225,6 +291,15 @@ export function generateTerrain({ seed, size = MVP_SIZE_M, res = MVP_RES }: Terr
       const steppe = steppeMask(x, z);
       if (steppe > 0) h = lerp(h, steppeHeight(x, z, detailNoise), steppe);
 
+      // Nordkap: Küstenstreifen mit Klippen und Buchten nördlich der alten Küste
+      const oldNorthD = z - (NORTH_COAST_Z + 55 * coastNoise(x / 520, 0.61));
+      const kap = nordkapMask(x, z, oldNorthD);
+      if (kap > 0) {
+        h += nordkapRelief(x, z, oldNorthD, detailNoise) * kap;
+        // Buchten voll einschneiden, auch wo die Ausbuchtung noch nicht ganz erreicht ist
+        h = lerp(h, 2 + 0.8 * detailNoise(x / 40, z / 40), coveWeight(x, z) * smoothstep(45, -200, oldNorthD));
+      }
+
       // Hoher Kogel im Norden
       h += kogelHeight(x, z, coastNoise);
 
@@ -242,11 +317,14 @@ export function generateTerrain({ seed, size = MVP_SIZE_M, res = MVP_RES }: Terr
       // Meer: Südküste, dazu West- und Ostküste der Insel und die Bucht vor der Glutsteppe
       const westD = x - (westCoastX(z) + 60 * coastNoise(0.81, z / 500));
       const eastD = 2260 + 70 * coastNoise(0.23, z / 450) - x;
-      const northD = z - (NORTH_COAST_Z + 55 * coastNoise(x / 520, 0.61));
+      // Am Nordkap ist die Küste weniger gewellt, die Buchten geben die Form vor
+      const northD = z - (northCoastZ(x) + 55 * (1 - 0.6 * nordkapSpan(x)) * coastNoise(x / 520, 0.61));
       // Im Nordwesten fällt die Hochfläche über einen breiten Steilhang zum Meer ab
       if (seen > 0) h -= Math.max(0, h - 30) * (1 - smoothstep(0, 210, westD)) ** 1.4 * seen;
       const coast = Math.min(d, westD, eastD, northD);
-      h = lerp(h, SEA_LEVEL - 10, smoothstep(40, -80, coast));
+      // Am Nordkap fallen Klippen steil ins Meer, in den Buchten liegt ein flacher Strand
+      const cliff = nordkapSpan(x) * (northD < Math.min(d, westD, eastD) ? 1 : 0);
+      h = lerp(h, SEA_LEVEL - 10, lerp(smoothstep(40, -80, coast), smoothstep(14, -26, coast), cliff));
       h = lerp(h, SEA_LEVEL - 9, bayMask(x, z, 18 * coastNoise(0.5, z / 300)));
 
       hf.set(i, j, h);

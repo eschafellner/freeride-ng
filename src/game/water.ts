@@ -27,12 +27,18 @@ export interface Water {
   setWaveCell(cell: number): void;
 }
 
-const INNER = 4200;
+/**
+ * Bereich mit Wellengitter: die Insel samt Küsten (sie liegt nicht mittig, im Norden
+ * reicht sie bis zum Nordkap). Außerhalb ist das Meer eine flache Fläche.
+ */
+const INNER = { x0: -3000, x1: 2600, z0: -3600, z1: 1400 } as const;
 
 function waveGrid(cell: number): THREE.PlaneGeometry {
-  const segs = cell > 0 ? Math.round(INNER / cell) : 1;
-  const g = new THREE.PlaneGeometry(INNER, INNER, segs, segs);
+  const w = INNER.x1 - INNER.x0;
+  const d = INNER.z1 - INNER.z0;
+  const g = new THREE.PlaneGeometry(w, d, cell > 0 ? Math.round(w / cell) : 1, cell > 0 ? Math.round(d / cell) : 1);
   g.rotateX(-Math.PI / 2);
+  g.translate((INNER.x0 + INNER.x1) / 2, 0, (INNER.z0 + INNER.z1) / 2);
   return g;
 }
 
@@ -197,24 +203,23 @@ export function createWater(waveCell: number, terrain: TerrainUniforms): Water {
   const group = new THREE.Group();
   group.name = 'wasser';
   // Wellengitter über der Insel und ihrer Küste, außen eine flache Fläche
-  const inner = INNER;
   const nearMesh = new THREE.Mesh(waveGrid(waveCell), mat);
   nearMesh.frustumCulled = false;
   group.add(nearMesh);
 
-  // Außenring aus vier Streifen, damit nichts doppelt gezeichnet wird
-  const outer = 20000;
-  const band = (outer - inner) / 2;
-  for (const [x, z, w, d] of [
-    [0, -(inner + band) / 2, outer, band],
-    [0, (inner + band) / 2, outer, band],
-    [-(inner + band) / 2, 0, band, inner],
-    [(inner + band) / 2, 0, band, inner],
+  // Außenrahmen aus vier Streifen um das Wellengitter, damit nichts doppelt gezeichnet wird
+  const O = 10000;
+  const { x0, x1, z0, z1 } = INNER;
+  for (const [ax, az, bx, bz] of [
+    [-O, -O, O, z0], // Norden
+    [-O, z1, O, O], // Süden
+    [-O, z0, x0, z1], // Westen
+    [x1, z0, O, z1], // Osten
   ] as const) {
-    const g = new THREE.PlaneGeometry(w, d);
+    const g = new THREE.PlaneGeometry(bx - ax, bz - az);
     g.rotateX(-Math.PI / 2);
     const m = new THREE.Mesh(g, mat);
-    m.position.set(x, 0, z);
+    m.position.set((ax + bx) / 2, 0, (az + bz) / 2);
     group.add(m);
   }
 

@@ -79,6 +79,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'seg-kogel', name: 'Gipfelsieg', text: 'Die Bergwertung Hoher Kogel bezwungen', xp: 150, test: runs('climb-kogel') },
   { id: 'seg-westrampe', name: 'Die harte Seite', text: 'Die Westrampe zum Gipfel bezwungen', xp: 150, test: runs('climb-westrampe') },
   { id: 'seg-seerunde', name: 'Spiegelglatt', text: 'Das Zeitfahren Seerunde um den Spiegelsee beendet', xp: 100, test: runs('tt-seerunde') },
+  { id: 'seg-kaprunde', name: 'Rauer Norden', text: 'Das Zeitfahren Kaprunde über die Klippen beendet', xp: 100, test: runs('tt-kaprunde') },
+  { id: 'seg-klippen', name: 'Mit dem Wind', text: 'Die Sprintzone Klippenstraße am Nordkap gefahren', xp: 75, test: runs('sprint-klippen') },
   {
     id: 'pb-1', name: 'Schneller als gestern', text: 'Eine eigene Bestzeit verbessert', xp: 75,
     test: (s) => [...s.segments.values()].some((r) => r.improvements > 0),

@@ -36,7 +36,7 @@ export const POI_RADIUS: Record<PoiType, number> = {
 const c = (id: string, edgeId: string, t: number): PoiDef => ({ id, type: 'collectible', edgeId, t });
 const sign = (id: string, name: string, edgeId: string, t: number): PoiDef => ({ id, type: 'sign', name, edgeId, t });
 
-/** 15 Sammelobjekte in Lumen und Rebland, je 5 in Glutsteppe, am Kogel und an den Spiegelseen, bevorzugt abseits der Hauptrunde. */
+/** 15 Sammelobjekte in Lumen und Rebland, je 5 in Glutsteppe, am Kogel, an den Spiegelseen und am Nordkap, bevorzugt abseits der Hauptrunde. */
 export const MVP_POIS: PoiDef[] = [
   c('k01', 'prom-w', 0.5),
   c('k02', 'westhafen', 0.6),
@@ -104,6 +104,18 @@ export const MVP_POIS: PoiDef[] = [
   sign('s-seedorf-s', 'Seedorf', 'seeweg', 0.82),
   sign('s-seedorf-o', 'Seedorf', 'unterseeweg', 0.14),
   sign('s-seedorf-w', 'Seedorf', 'waldstrasse', 0.12),
+
+  // Nordkap (ab Level 5)
+  c('k31', 'nordstrasse', 0.55),
+  c('k32', 'klippenstrasse', 0.45),
+  c('k33', 'leuchtturmweg', 0.55),
+  c('k34', 'heidestrasse', 0.45),
+  c('k35', 'heideweg', 0.6),
+  { id: 'v-nordkap', type: 'viewpoint', name: 'Nordkap', nodeId: 'leuchtturm' },
+  { id: 'v-moewenbucht', type: 'viewpoint', name: 'Möwenbucht', nodeId: 'moewenbucht' },
+  sign('s-kapdorf-w', 'Kapdorf', 'kapstrasse', 0.72),
+  sign('s-kapdorf-o', 'Kapdorf', 'robbenstrasse', 0.18),
+  sign('s-kapdorf-s', 'Kapdorf', 'heidestrasse', 0.85),
 ];
 
 export function resolvePois(net: RoadNetwork, defs: PoiDef[] = MVP_POIS): Poi[] {

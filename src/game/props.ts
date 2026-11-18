@@ -5,7 +5,7 @@ import { mulberry32, smoothstep } from '../world/random';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { RoadEdge, RoadNetwork } from '../world/roadNetwork';
 import { nearestLake, waterLevelAt } from '../world/lakes';
-import { kogelMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
+import { kogelMask, nordkapMask, seenMask, steppeMask, townMask } from '../world/terrainGen';
 import { SCREE_LINE, TREELINE } from './terrainMesh';
 import { merged, painted } from './details';
 
@@ -500,6 +500,24 @@ export function createProps(
       }
       continue;
     }
+    if (y < TREELINE - 60 && nordkapMask(x, z) > 0.5) {
+      // Nordkap: windige Heide mit Büschen, wenigen geduckten Kiefern und Felsbrocken
+      if (mask > 0.05) continue;
+      const r = rng();
+      if (slope > 0.6) {
+        if (r < 0.12) rocks.push({ matrix: mat(x, y - 0.3, z, rng() * 6, 0.8 + rng() * 1.8) });
+      } else if (r < 0.07) {
+        if (occupied.tryTake(x, z, 1)) bushes.push({ matrix: mat(x, y - 0.15, z, rng() * 6, 0.5 + rng() * 0.6, 0.4 + rng() * 0.3, 0.5 + rng() * 0.6), color: new THREE.Color(rng() < 0.4 ? '#b48aa8' : '#9aaa68') });
+      } else if (r < 0.085) {
+        if (occupied.tryTake(x, z, 2)) {
+          const sc = 0.5 + rng() * 0.35;
+          conifers.push({ matrix: mat(x, y - 0.2, z, rng() * 6, sc * 1.2, sc * 0.7, sc * 1.2) });
+        }
+      } else if (r < 0.1) {
+        rocks.push({ matrix: mat(x, y - 0.25, z, rng() * 6, 0.5 + rng() * 1.1) });
+      }
+      continue;
+    }
     // Am Kogel wächst auch an den steilen Flanken Bergwald
     const steepLimit = kogelMask(x, z) > 0.03 ? 0.95 : 0.45;
     if (slope > steepLimit) {
@@ -574,7 +592,9 @@ export function createProps(
     if (!n.gate) continue;
     // Führt ein Weg ins Gebiet, steht die Schranke ein Stück darauf (quer zu ihm), damit
     // offene Wege durch den Knoten frei bleiben; sonst am Wegende quer zum Zufahrtsweg.
-    const inner = n.edges.map((id) => roads.edge(id)).find((e) => e.region !== undefined);
+    // Liegt der Knoten selbst in einem Gebiet (Oberseeblick, Glutplateau), zählt der Weg ins gesperrte Gebiet
+    const gated = REGIONS.find((r) => r.gateNodes.includes(n.id));
+    const inner = n.edges.map((id) => roads.edge(id)).find((e) => e.region !== undefined && (gated ? e.region === gated.id : true));
     const e = inner ?? roads.edge(n.edges[0]!);
     const atEnd = e.to === n.id;
     const inset = inner ? Math.min(7, e.length / 2) : 0;
@@ -593,7 +613,8 @@ export function createProps(
       new THREE.MeshLambertMaterial({ vertexColors: true }),
     );
     barrier.position.set(at.x, at.y + 1.1, at.z);
-    barrier.rotation.y = Math.atan2(d.dx, d.dz) + Math.PI / 2;
+    // Balken (lange Achse = lokales x) quer zur Fahrbahn
+    barrier.rotation.y = Math.atan2(d.dx, d.dz);
     gate.add(barrier);
     for (const side of [-3.2, 3.2]) {
       const post = new THREE.Mesh(
@@ -603,7 +624,7 @@ export function createProps(
       post.position.set(at.x - d.dz * side, at.y + 0.65, at.z + d.dx * side);
       gate.add(post);
     }
-    const region = REGIONS.find((r) => r.gateNodes.includes(n.id));
+    const region = gated;
     if (region) {
       // Schild neben der Schranke, zur ankommenden Fahrerin gedreht
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.3), new THREE.MeshLambertMaterial({ map: gateSignTexture(region.name, region.unlockLevel) }));

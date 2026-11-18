@@ -1,4 +1,5 @@
 import { KOGEL_EDGES, KOGEL_NODES } from './kogelLayout';
+import { NORDKAP_EDGES, NORDKAP_NODES } from './nordkapLayout';
 import { FORSTHAUS, SEEN_EDGES, SEEN_NODES } from './seenLayout';
 
 /**
@@ -41,6 +42,7 @@ export interface RegionDef {
 export const REGIONS: RegionDef[] = [
   { id: 'glutsteppe', name: 'Glutsteppe', unlockLevel: 3, gateNodes: ['bruecke'], via: 'über die Hafenbrücke' },
   { id: 'seen', name: 'Spiegelseen', unlockLevel: 4, gateNodes: ['forsthaus'], via: 'über den Seeweg am Forsthaus' },
+  { id: 'nordkap', name: 'Nordkap', unlockLevel: 5, gateNodes: ['oberseeblick', 'plateau'], via: 'am Oberseeblick und am Glutplateau' },
   { id: 'kogel', name: 'Hoher Kogel', unlockLevel: 6, gateNodes: ['pass', 'waldrand'], via: 'über den Passweg und am Waldrand' },
 ];
 
@@ -95,12 +97,14 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'ostkap', x: 2120, z: 680, name: 'Ostkap', region: 'glutsteppe' },
     { id: 'windkamm', x: 2110, z: -720, name: 'Windkamm', region: 'glutsteppe' },
     { id: 'mittelkreuz', x: 1915, z: 160, region: 'glutsteppe' },
-    { id: 'plateau', x: 2040, z: -1210, name: 'Glutplateau', region: 'glutsteppe' },
+    { id: 'plateau', x: 2040, z: -1210, name: 'Glutplateau', region: 'glutsteppe', gate: true },
     // Hoher Kogel (hinter dem Passweg, ab Level 6), Serpentinen in kogelLayout.ts
     ...KOGEL_NODES,
     // Spiegelseen (Nordwesten, ab Level 4), Wege in seenLayout.ts
     FORSTHAUS,
     ...SEEN_NODES,
+    // Nordkap (Nordküste, ab Level 5), Wege in nordkapLayout.ts
+    ...NORDKAP_NODES,
   ],
   edges: [
     // Promenade
@@ -169,5 +173,6 @@ export const MVP_LAYOUT: RoadLayout = {
     { id: 'passstrasse', from: 'hangdorf', to: 'pass', via: [[-40, -700], [-260, -930], [60, -1150]], name: 'Passstraße' },
     ...KOGEL_EDGES,
     ...SEEN_EDGES,
+    ...NORDKAP_EDGES,
   ],
 };

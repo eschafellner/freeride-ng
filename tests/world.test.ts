@@ -10,7 +10,7 @@ import { MVP_SEGMENTS, resolveSegments } from '../src/world/segments';
 import { findHairpins } from '../src/game/mountain';
 import { LAKES, lakeShape, nearestLake, waterLevelAt } from '../src/world/lakes';
 import { shorePoint } from '../src/world/seenLayout';
-import { seenMask, westCoastX } from '../src/world/terrainGen';
+import { COVES, coveBeach, nordkapMask, northCoastZ, NORTH_COAST_Z, seenMask, westCoastX } from '../src/world/terrainGen';
 
 const world = createWorld();
 
@@ -66,7 +66,7 @@ describe('Wegenetz (MVP, Standard-Seed)', () => {
 
   it('hat ungefähr die geplante Länge', () => {
     expect(roads.totalLength).toBeGreaterThan(17000);
-    expect(roads.totalLength).toBeLessThan(55000);
+    expect(roads.totalLength).toBeLessThan(62000);
   });
 
   it('überschreitet nirgends 10 % Steigung', () => {
@@ -257,10 +257,11 @@ describe('Hoher Kogel', () => {
   const roads = world.roads;
   const raw = generateTerrain({ seed: DEFAULT_SEED });
 
-  it('der Gipfel ist rund 700 m hoch, im Norden liegt Meer', () => {
+  it('der Gipfel ist rund 700 m hoch, im Norden liegt dahinter das Nordkap und Meer', () => {
     expect(raw.sample(KOGEL.x, KOGEL.z)).toBeGreaterThan(660);
     expect(raw.sample(KOGEL.x, KOGEL.z)).toBeLessThan(730);
-    expect(raw.sample(0, -2990)).toBeLessThan(0);
+    expect(raw.sample(0, -2990)).toBeGreaterThan(100);
+    expect(raw.sample(0, -3500)).toBeLessThan(0);
   });
 
   it('läuft vor dem Passweg aus: Rebland und Passstraße bleiben unverändert', () => {
@@ -411,5 +412,89 @@ describe('Spiegelseen', () => {
     expect(seg!.nodes[0]).toBe(seg!.nodes[seg!.nodes.length - 1]);
     expect(seg!.length).toBeGreaterThan(2500);
     expect(seg!.legs.some((l) => l.edge.id === 'seebruecke')).toBe(false);
+  });
+});
+
+describe('Nordkap', () => {
+  const roads = world.roads;
+  const raw = generateTerrain({ seed: DEFAULT_SEED });
+  const kapEdges = [...roads.edges.values()].filter((e) => e.region === 'nordkap');
+
+  it('ist ein eigenes Gebiet ab Level 5 mit Zugängen am Oberseeblick und am Glutplateau', () => {
+    const r = REGIONS.find((x) => x.id === 'nordkap')!;
+    expect(r.unlockLevel).toBe(5);
+    expect(r.gateNodes).toEqual(['oberseeblick', 'plateau']);
+    for (const g of r.gateNodes) {
+      const n = roads.node(g);
+      expect(n.gate).toBe(true);
+      expect(n.edges.some((id) => roads.edge(id).region === 'nordkap')).toBe(true);
+    }
+    // Die Torknoten gehören weiter zu ihren Gebieten
+    expect(roads.node('oberseeblick').region).toBe('seen');
+    expect(roads.node('plateau').region).toBe('glutsteppe');
+  });
+
+  it('gesperrt biegt man am Oberseeblick nicht in die Nordstraße ab', () => {
+    roads.lockedRegions.add('nordkap');
+    const r = new RiderOnNetwork(roads, 'obersee-n', 0, 1);
+    expect(r.upcomingExits().map((x) => x.edge.id)).toEqual(['obersee-nw']);
+    roads.lockedRegions.delete('nordkap');
+    expect(r.upcomingExits().map((x) => x.edge.id).sort()).toEqual(['nordstrasse', 'obersee-nw']);
+  });
+
+  it('die Küste wölbt sich nach Norden, das Kap ragt am weitesten hinaus', () => {
+    expect(northCoastZ(-2200)).toBeCloseTo(NORTH_COAST_Z, 0);
+    expect(northCoastZ(0)).toBeLessThan(NORTH_COAST_Z - 380);
+    const tip = roads.node('leuchtturm');
+    expect(world.terrain.sample(tip.x, tip.z)).toBeGreaterThan(100);
+    expect(world.terrain.sample(tip.x, tip.z - 120)).toBeLessThan(0);
+    expect(northCoastZ(380)).toBeLessThan(Math.min(northCoastZ(0), northCoastZ(800)) - 100);
+  });
+
+  it('hohe Klippen, unten in den Buchten ein Strand', () => {
+    for (const c of COVES) {
+      const [x, z] = coveBeach(c);
+      const h = world.terrain.sample(x, z);
+      expect(h, c.id).toBeGreaterThan(0.3);
+      expect(h, c.id).toBeLessThan(5);
+      // Rundherum hohe Klippen
+      expect(world.terrain.sample(x - 180, z), c.id).toBeGreaterThan(80);
+      expect(world.terrain.sample(x + 180, z), c.id).toBeGreaterThan(80);
+    }
+  });
+
+  it('außerhalb des Nordkaps bleibt das Gelände unverändert (Wege anderer Gebiete)', () => {
+    for (const e of roads.edges.values()) {
+      if (e.region === 'nordkap') continue;
+      for (let s = 0; s <= e.length; s += 20) {
+        const p = e.pointAt(s);
+        expect(nordkapMask(p.x, p.z), `${e.id} @ ${s}`).toBe(0);
+      }
+    }
+  });
+
+  it('die Küstenstraße ist wellig, bleibt auf den Klippen und trocken', () => {
+    let total = 0;
+    let climb = 0;
+    for (const e of kapEdges) {
+      total += e.length;
+      for (let s = 0; s + 10 <= e.length; s += 10) climb += Math.abs(e.heightAt(s + 10) - e.heightAt(s));
+      for (let s = 0; s <= e.length; s += 5) {
+        const p = e.pointAt(s);
+        expect(p.y, `${e.id} @ ${s}`).toBeGreaterThan(100);
+        expect(raw.sample(p.x, p.z), `${e.id} @ ${s}`).toBeGreaterThan(20);
+      }
+    }
+    expect(total).toBeGreaterThan(7000);
+    // Im Mittel zwischen 3 und 7 % (auf und ab zusammen)
+    expect(climb / total).toBeGreaterThan(0.03);
+    expect(climb / total).toBeLessThan(0.07);
+  });
+
+  it('das Zeitfahren Kaprunde ist ein Rundkurs über Kapdorf', () => {
+    const [seg] = resolveSegments(roads, MVP_SEGMENTS.filter((s) => s.id === 'tt-kaprunde'));
+    expect(seg!.nodes[0]).toBe('kapdorf');
+    expect(seg!.nodes[seg!.nodes.length - 1]).toBe('kapdorf');
+    expect(seg!.length).toBeGreaterThan(2000);
   });
 });

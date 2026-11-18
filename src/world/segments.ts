@@ -33,6 +33,8 @@ export const MVP_SEGMENTS: SegmentDef[] = [
   { id: 'climb-kogel', name: 'Hoher Kogel', kind: 'climb', nodes: ['pass', 'kogelalm', 'gipfel'] },
   { id: 'climb-westrampe', name: 'Westrampe', kind: 'climb', nodes: ['waldrand', 'gipfel'] },
   { id: 'tt-seerunde', name: 'Seerunde', kind: 'tt', nodes: ['seesteg-s', 'ostbucht', 'seesteg-n', 'westbucht', 'seesteg-s'] },
+  { id: 'tt-kaprunde', name: 'Kaprunde', kind: 'tt', nodes: ['kapdorf', 'robbenbucht', 'heidekreuz', 'kapdorf'] },
+  { id: 'sprint-klippen', name: 'Klippenstraße', kind: 'sprint', nodes: ['moewenbucht', 'kapkreuz'] },
 ];
 
 export interface SegmentLeg {

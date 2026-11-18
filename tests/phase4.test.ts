@@ -112,7 +112,7 @@ describe('POIs', () => {
 
   it('IDs sind eindeutig, 30 Sammelobjekte (15 + je 5 in Glutsteppe, am Kogel und an den Spiegelseen)', () => {
     expect(new Set(pois.map((p) => p.id)).size).toBe(pois.length);
-    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(30);
+    expect(pois.filter((p) => p.type === 'collectible')).toHaveLength(35);
   });
 
   it('jedes Sammelobjekt ist mit dem Fahrer erreichbar', () => {
@@ -138,7 +138,7 @@ describe('GameProgress', () => {
   it('sammelt einmal ein', () => {
     const g = new GameProgress(pois);
     const ev = g.update(k01, 0);
-    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 30 })]);
+    expect(ev).toEqual([expect.objectContaining({ type: 'collect', collected: 1, total: 35 })]);
     expect(g.update(k01, 1)).toEqual([]);
   });
 
@@ -246,6 +246,16 @@ describe('Erkundungsnebel aus einer kleineren Welt', () => {
     expect(big.res).toBe(300);
     expect(big.isRevealed(1800, 700)).toBe(true);
     expect(big.isRevealed(0, -2300)).toBe(false);
+    expect(big.countRevealed(() => true)).toBe(old.countRevealed(() => true));
+  });
+
+  it('auch von 6 auf 7,2 km (Nordkap)', () => {
+    const old = new FogGrid(6000, 20);
+    old.reveal(-2000, -2500, 50);
+    const big = new FogGrid(7200, 20, old.cells);
+    expect(big.res).toBe(360);
+    expect(big.isRevealed(-2000, -2500)).toBe(true);
+    expect(big.isRevealed(380, -3350)).toBe(false);
     expect(big.countRevealed(() => true)).toBe(old.countRevealed(() => true));
   });
 

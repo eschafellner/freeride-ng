@@ -1,4 +1,4 @@
-# Stand: Freeride NG (17.11.2026)
+# Stand: Freeride NG (18.11.2026)
 
 Kurzüberblick zum Weitermachen. Details stehen in `docs/bauplan.md` (Abschnitt
 „Stand & offene Punkte“), die Welt in `docs/welt.md`, Arbeitsregeln in `CLAUDE.md`.
@@ -29,11 +29,12 @@ CP2102-Adapter als `/dev/ttyUSB0`, aber das Cockpit antwortet bisher auf keinen 
 | Phase 6, Schritt 3: Tag-Nacht-Wechsel mit Fahrradlicht | ✅ |
 | Phase 6, Schritt 4: Hoher Kogel mit Serpentinen (ab Level 6) | ✅ |
 | Phase 6, Schritt 5: Spiegelseen mit Seebrücke (ab Level 4) | ✅ |
-| Phase 6: Nordkap, Wetter, Sound | ⏭ offen |
+| Phase 6, Schritt 6: Nordkap mit Leuchtturm (ab Level 5), Welt 7,2 × 7,2 km | ✅ |
+| Phase 6: Wetter, Sound | ⏭ offen |
 | Phase 7, Schritt 1: Fahrten-Historie, Export als TCX und FIT | ✅ |
 | Phase 7: Workouts (ERG, `.zwo`) | ⏭ offen (erst nach Phase 0 sinnvoll) |
 
-Qualität: 230 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 238 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -51,6 +52,9 @@ npm test             # Tests
   `&edge=gipfelstrasse&s=2850` (Gipfel), `&edge=westrampe&s=3000` (Westrampe), Schranke: `&edge=passstrasse&s=1340&locked`
 - Spiegelseen: `/?demo&edge=seebruecke&s=40` (Seebrücke), `&edge=seeweg&s=560` (Seedorf), `&edge=obersee-n&s=300` (Obersee),
   Schranke: `&edge=waldweg&s=440&locked`
+- Nordkap: `/?demo&edge=leuchtturmweg&s=60` (Leuchtturm), `&edge=klippenstrasse&s=900` (unter dem Kogel),
+  `&edge=robbenstrasse&s=100` (Kapdorf), nachts mit `&uhr=21.5` (Lichtstrahl). Schranken:
+  `&edge=obersee-n&s=10&locked` (Oberseeblick), `&edge=heideweg&s=1640&locked` (Glutplateau)
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
 - Fahrten: Startmenü → „Fahrten-Historie“, „Fahrt beenden“ im Pausenmenü. Im Demo-Modus wird nichts gespeichert,
   der Export am Ende einer Fahrt geht trotzdem
@@ -82,9 +86,9 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
   max. +20 W/s. Pause, Tab-Wechsel und Trennen setzen sofort auf das Minimum.
 - **Fortschritt** (`src/world/progression.ts`): XP-Werte in `XP`, Erfolge in `ACHIEVEMENTS`,
   Levelkurve `xpForNextLevel`. Segmente in `MVP_SEGMENTS` (`src/world/segments.ts`) als Knotenfolge.
-- **Welt** (`src/world/`): Seed `20261111`, 6 × 6 km, Gelände per Noise, Wegenetz von Hand
-  in `roadLayout.ts` (≈ 51 km, max. 10 %), Serpentinen am Kogel in `kogelLayout.ts`, Spiegelseen in `seenLayout.ts`.
-- **Gebiete** (`REGIONS` in `roadLayout.ts`): Glutsteppe ab Level 3, Spiegelseen ab Level 4, Hoher Kogel ab Level 6.
+- **Welt** (`src/world/`): Seed `20261111`, 7,2 × 7,2 km, Gelände per Noise, Wegenetz von Hand
+  in `roadLayout.ts` (≈ 51 km, max. 10 %), Serpentinen am Kogel in `kogelLayout.ts`, Spiegelseen in `seenLayout.ts`, Nordkap in `nordkapLayout.ts`.
+- **Gebiete** (`REGIONS` in `roadLayout.ts`): Glutsteppe ab Level 3, Spiegelseen ab Level 4, Nordkap ab Level 5, Hoher Kogel ab Level 6.
 - **Seen** (`src/world/lakes.ts`): Form und Wasserhöhe je See; die Uferwege in `seenLayout.ts` wandern mit.
 
 ## Offene Punkte
@@ -123,6 +127,15 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
 - Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
 
+**Nordkap selbst prüfen:**
+- Ab Level 5 öffnen sich die Schranken am Oberseeblick (Spiegelseen) und am Glutplateau (Glutsteppe)
+- Fühlt sich die Küstenstraße wellig, aber angenehm an? Kurze Rampe an den Ostklippen (≈ 8 %)
+- Gefallen Klippen, Buchten (Strand, Boote, Robben), Heide und Leuchtturm? Formen in `terrainGen.ts`
+  (`NORDKAP`, `CAPE`, `COVES`), Ausstattung in `nordkap.ts`, Farben in `terrainMesh.ts` (`heath`, `cliff`)
+- Nachts: Lichtstrahl des Leuchtturms passend hell?
+- Läuft es flüssig? Die Welt ist jetzt 7,2 km groß (Aufbau der Welt dauert etwas länger)
+- Fix nebenbei: Schrankenbalken stehen jetzt quer zur Straße (lagen vorher längs)
+
 **Spiegelseen selbst prüfen:**
 - Ab Level 4 öffnet sich die Schranke am Forsthaus (Abzweig vom Waldweg zwischen Rebland und Waldrand)
 - Gefallen Seewasser, Kiesufer und Uferwiesen? Wasserfarben in `water.ts` (`uShallow`, `uDeep`, Spiegelung bei `uCalm`)
@@ -155,12 +168,12 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 
 ## Nächster Schritt
 
-Phase 6 weiter: Wetter, Sound oder das letzte Gebiet, das **Nordkap** (Klippen, Leuchtturm,
-wellige Küstenstraße an der Nordküste, z. B. vom Obersee über den Klippenweg erreichbar). Startprompt:
+Phase 6 abschließen: **Wetter** (Wolkendecke, Nebel, Regen, nur optisch) oder **Sound** (Fahrgeräusche,
+Wind, Meer, Möwen, prozedural per Web Audio). Startprompt:
 
 ```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns das Nordkap planen:
-Klippen, Leuchtturm und eine wellige Küstenstraße (3–8 %) an der Nordküste, freigeschaltet über das Level.
+Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns Wetter planen: wechselnde Wolken,
+Nebel und Regen, rein optisch, im Grafikmenü abschaltbar.
 ```
 
 Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:

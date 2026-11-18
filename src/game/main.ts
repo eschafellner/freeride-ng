@@ -27,6 +27,7 @@ import { PoiMeshes } from './poiMeshes';
 import { createDetails } from './details';
 import { createLandmarks } from './landmarks';
 import { createMountainDetails } from './mountain';
+import { createNordkapDetails } from './nordkap';
 import { createProps } from './props';
 import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
@@ -95,6 +96,10 @@ async function main() {
   const mountain = createMountainDetails(world.terrain, world.roads, world.seed);
   landmarks.reserved.push(...mountain.reserved);
   scene.add(mountain.group);
+  // Nordkap: Leuchtturm, Boote, Robben, Möwen
+  const nordkap = createNordkapDetails(world.terrain, world.roads, world.seed);
+  landmarks.reserved.push(...nordkap.reserved);
+  scene.add(nordkap.group);
   const props = createProps(world.terrain, world.roads, world.seed, landmarks.reserved);
   props.name = 'gebaeude';
   scene.add(props);
@@ -182,6 +187,7 @@ async function main() {
   // Landzellen (Meer zählt nicht) und davon die erreichbaren: in Sichtweite eines Weges.
   // Der Anteil „Erkundet“ bezieht sich auf die erreichbaren, damit 100 % möglich bleiben.
   const landMask = new Uint8Array(fog.res * fog.res);
+  const bigMapView = { cx: 0, cz: 0, metersAcross: world.terrain.size };
   const reachMask = new Uint8Array(fog.res * fog.res);
   {
     const half = world.terrain.half;
@@ -190,6 +196,21 @@ async function main() {
         landMask[j * fog.res + i] =
           world.terrain.sample(-half + (i + 0.5) * fog.cellSize, -half + (j + 0.5) * fog.cellSize) > 0 ? 1 : 0;
       }
+    }
+    // Ausschnitt der großen Karte: die Insel mit etwas Meer rundherum (sie sitzt nicht mittig)
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let j = 0; j < fog.res; j++) {
+      for (let i = 0; i < fog.res; i++) {
+        if (!landMask[j * fog.res + i]) continue;
+        const x = -half + (i + 0.5) * fog.cellSize;
+        const z = -half + (j + 0.5) * fog.cellSize;
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+      }
+    }
+    if (x0 < x1) {
+      bigMapView.cx = (x0 + x1) / 2;
+      bigMapView.cz = (z0 + z1) / 2;
+      bigMapView.metersAcross = Math.min(world.terrain.size, Math.max(x1 - x0, z1 - z0) + 400);
     }
     const reach = Math.ceil(REVEAL_RADIUS / fog.cellSize);
     for (const e of world.roads.edges.values()) {
@@ -743,7 +764,7 @@ async function main() {
     bigmapCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
     worldMap.draw(
       bigmapCtx, px, px,
-      { cx: 0, cz: 0, metersAcross: world.terrain.size },
+      bigMapView,
       riderInfo(), progress.collected, progress.viewpoints, segmentRoutes,
     );
     const s = engine.state();
@@ -856,6 +877,7 @@ async function main() {
     model.animate(dt, state.speed, state.cadence);
     poiMeshes.animate(dt);
     landmarks.animate(dt);
+    nordkap.animate(dt);
     // Blick voraus folgt der gewählten Abzweigung (Vorschau ohne die Wahl zu verbrauchen)
     const aheadP = rider.pointAhead(18, (node, exits) => {
       const sel = selector.selectionFor(node.id);

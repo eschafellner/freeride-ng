@@ -56,7 +56,7 @@ function fountain(): THREE.BufferGeometry {
   ]);
 }
 
-function boat(color: string): THREE.BufferGeometry {
+export function boat(color: string): THREE.BufferGeometry {
   return merged([
     painted(new THREE.BoxGeometry(2.4, 1.0, 7).translate(0, 0.2, 0), color),
     painted(new THREE.ConeGeometry(1.7, 2.4, 4).rotateY(Math.PI / 4).rotateX(Math.PI / 2).scale(1, 0.42, 1).translate(0, 0.2, 4.7), color),
