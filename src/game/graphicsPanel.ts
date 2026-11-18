@@ -37,7 +37,7 @@ export class GraphicsPanel {
     const select = (id: string, values: readonly number[], labels: Record<number, string>) =>
       `<select id="${id}">${values.map((v) => `<option value="${v}">${labels[v]}</option>`).join('')}</select>`;
     this.el.innerHTML = `
-      <h2>Grafik <small id="g-preset"></small></h2>
+      <h2>Grafik und Ton <small id="g-preset"></small></h2>
       <div class="g-presets">${levels.map((l) => `<button data-preset="${l}">${QUALITY_LABEL[l]}</button>`).join('')}</div>
       <div class="g-grid">
         <label for="g-grass">Grasweite</label>${range('g-grass', LIMITS.grassDistance)}<output id="g-grass-v"></output>
@@ -50,6 +50,8 @@ export class GraphicsPanel {
         <label for="g-ao">Kontaktschatten</label><input type="checkbox" id="g-ao"><span></span>
         <label for="g-bloom">Leuchten (Bloom)</label><input type="checkbox" id="g-bloom"><span></span>
         <label for="g-daynight">Tageszeit</label><select id="g-daynight"><option value="zyklus">Tag-Nacht-Zyklus</option><option value="tag">Immer Tag</option></select><span></span>
+        <label for="g-weather">Wetter</label><select id="g-weather"><option value="wechselnd">Wechselnd</option><option value="schoen">Immer schön</option></select><span></span>
+        <label for="g-volume">Lautstärke</label>${range('g-volume', LIMITS.volume)}<output id="g-volume-v"></output>
         <label for="g-hud">Anzeige</label><select id="g-hud"><option value="standard">Standard</option><option value="radcomputer">Fahrradcomputer</option></select><span></span>
         <label>Bildrate</label><b id="g-fps">–</b><span></span>
       </div>
@@ -57,7 +59,7 @@ export class GraphicsPanel {
       <button id="g-close" class="primary">Fertig <kbd>G</kbd></button>`;
 
     for (const b of this.el.querySelectorAll<HTMLButtonElement>('[data-preset]')) {
-      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel, this.settings.hud, this.settings.dayNight)));
+      b.addEventListener('click', () => this.set(presetSettings(b.dataset.preset as QualityLevel, this.settings.hud, this.settings.dayNight, this.settings.weather, this.settings.volume)));
     }
     const $ = <T extends HTMLElement>(id: string) => this.el.querySelector<T>(`#${id}`)!;
     const custom = (patch: Partial<GraphicsSettings>) => this.set({ ...this.settings, ...patch, preset: 'eigene' });
@@ -75,6 +77,10 @@ export class GraphicsPanel {
       this.set({ ...this.settings, hud: (e.target as HTMLSelectElement).value === 'radcomputer' ? 'radcomputer' : 'standard' }));
     $<HTMLSelectElement>('g-daynight').addEventListener('change', (e) =>
       this.set({ ...this.settings, dayNight: (e.target as HTMLSelectElement).value === 'tag' ? 'tag' : 'zyklus' }));
+    $<HTMLSelectElement>('g-weather').addEventListener('change', (e) =>
+      this.set({ ...this.settings, weather: (e.target as HTMLSelectElement).value === 'schoen' ? 'schoen' : 'wechselnd' }));
+    // Lautstärke ist keine Grafiklast: Voreinstellung bleibt erhalten
+    $<HTMLInputElement>('g-volume').addEventListener('input', (e) => this.set({ ...this.settings, volume: Number((e.target as HTMLInputElement).value) }));
     $('g-close').addEventListener('click', () => this.onClose?.());
   }
 
@@ -115,5 +121,8 @@ export class GraphicsPanel {
     $<HTMLInputElement>('g-bloom').checked = s.bloom;
     $<HTMLSelectElement>('g-hud').value = s.hud;
     $<HTMLSelectElement>('g-daynight').value = s.dayNight;
+    $<HTMLSelectElement>('g-weather').value = s.weather;
+    $<HTMLInputElement>('g-volume').value = String(s.volume);
+    $('g-volume-v').textContent = s.volume === 0 ? 'aus' : `${Math.round(s.volume * 100)} %`;
   }
 }

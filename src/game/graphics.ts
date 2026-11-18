@@ -8,6 +8,9 @@ import type { GraphicsSettings } from './quality';
 import type { SceneBundle } from './scene';
 import type { TerrainUniforms } from './shaderChunks';
 import { createWater, type Water } from './water';
+import { createRain, type Rain } from './rain';
+import { Weather } from './weather';
+import type { WeatherKind } from './weatherCycle';
 
 /**
  * Wendet Grafik-Einstellungen zur Laufzeit an, ohne die Seite neu zu laden:
@@ -16,6 +19,8 @@ import { createWater, type Water } from './water';
 export class GraphicsController {
   readonly water: Water;
   readonly dayNight: DayNight;
+  readonly weather: Weather;
+  private readonly rain: Rain;
   private grass: Grass | null = null;
   private postfx: PostFx | null = null;
   private current: GraphicsSettings | null = null;
@@ -26,8 +31,13 @@ export class GraphicsController {
     settings: GraphicsSettings,
     /** Startzeit im Tag-Nacht-Zyklus in s (Standard: Vormittag). */
     startTime?: number,
+    /** Fest eingestelltes Wetter (Demo: `&wetter=regen`). */
+    fixedWeather: WeatherKind | null = null,
   ) {
     this.dayNight = new DayNight(bundle, settings.dayNight, startTime);
+    this.weather = new Weather(settings.weather, undefined, fixedWeather);
+    this.rain = createRain();
+    bundle.scene.add(this.rain.mesh);
     this.water = createWater(settings.waveCell, terrain);
     bundle.scene.add(this.water.group);
     this.apply(settings);
@@ -75,14 +85,25 @@ export class GraphicsController {
 
     lod.setScale(s.detailDistance);
     this.dayNight.setMode(s.dayNight);
+    this.weather.setMode(s.weather);
     setHouseSurfaces(s.surfaces);
 
     document.body.classList.toggle('hud-radcomputer', s.hud === 'radcomputer');
     this.current = { ...s };
   }
 
+  /**
+   * Tageszeit und Wetter weiterführen (Zeit läuft nur während der Fahrt).
+   * @param steppe, coast Anteil Glutsteppe bzw. Nordkap am Fahrer
+   */
+  updateSky(dt: number, running: boolean, steppe: number, coast: number): void {
+    this.dayNight.setWeather(this.weather.update(dt, running, steppe, coast));
+    this.dayNight.update(dt, running);
+  }
+
   update(time: number, camera: THREE.Camera): void {
     lod.update(camera.position);
+    this.rain.update(this.weather.current.rain, time, camera);
     this.water.update(time);
     this.grass?.update(time, camera);
   }

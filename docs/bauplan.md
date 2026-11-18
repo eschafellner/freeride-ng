@@ -136,7 +136,7 @@ Umgesetzt am 12.11.2026 bis auf die freischaltbaren Räder, Outfits und Gebiete 
 **Ergebnis:** Eine größere, lebendige Welt, die auch auf schwächerer Hardware flüssig läuft.
 
 - Biome (Wald, Berge, See, Dorf), Kacheln werden beim Fahren nachgeladen
-- Tag-Nacht-Wechsel, Wetter, Sound und Musik
+- Tag-Nacht-Wechsel, Wetter, Sound und Musik (Musik noch offen)
 - Performance: Instancing für Bäume, Level of Detail, Ziel 60 fps
 
 ### Phase 7: Training und Extras
@@ -308,6 +308,22 @@ Offen aus den Spiegelseen:
 - [ ] Wasserfarbe der Seen am echten Bildschirm prüfen (`uShallow`/`uDeep` und Spiegelung in `water.ts`), headless nur mit Software-Rendering geprüft
 - [ ] Optional: Forsthaus als Gebäude, Bootssteg mit Ruderbooten in Seedorf, Schilf am Ufer, Spiegelung der Bäume im Wasser
 - [x] Das Wegenetz ist kürzer als im Weltentwurf geplant (9,7 statt 15 km); die Verbindung zum Nordkap gibt es jetzt (Nordstraße am Oberseeblick)
+
+**18.11.2026, Phase 6 abgeschlossen: Wetter und Sound:**
+- **Wetter** (rein optisch, keine Folgen für Tempo oder Zielwatt): Lagen Klar, Heiter, Bewölkt, Bedeckt, Nebel, Regen. Jede hält 4–9 Minuten Fahrzeit, Übergänge dauern 90 s, die Zeit läuft nur während der Fahrt. Das Wetter wechselt schrittweise (Regen nur nach Bedeckt), jede Fahrt beginnt heiter. Rechnung in `src/game/weatherCycle.ts` (getestet), Ablauf in `weather.ts`
+- Wirkung: Wolkenbedeckung (90 Wolken, die je nach Bedeckung weich auf- und abtauchen und größer werden, `CLOUD_COVER` in `scene.ts`), grauer Himmel, gedämpfte Sonne und Schatten, Nebel mit kurzer Sicht, Regen als Striche um die Kamera (`rain.ts`, ein Zeichenaufruf), nachts keine Sterne hinter Wolken. Das Wetter liegt über dem Tag-Nacht-Zyklus (`applyWeather`)
+- Regional: In der Glutsteppe regnet es nicht und es gibt kaum Dunst, am Nordkap zieht leichter Seenebel auf
+- Grafikmenü: **Wetter** „Wechselnd“ oder „Immer schön“; Demo: `&wetter=regen|nebel|bedeckt|bewoelkt|heiter|klar`
+- **Sound** (Web Audio, alles erzeugt, keine Tondateien, `src/game/audio.ts`): Fahrtwind (wächst mit dem Tempo), Abrollen der Reifen, Knirschen auf Schotter, Klicken des Freilaufs beim Rollen ohne Treten, Brandung in Meeresnähe, Regen, Vögel am Tag (kaum in der Steppe), Grillen in der Nacht, Möwen an der Küste und am Nordkap. Dazu kurze Klänge für Kristall, Aussichtspunkt, Level, neues Gebiet, Segment-Start/-Ziel/-Abbruch und Schalten. Mischung als reine Rechnung in `soundMix.ts` (getestet)
+- Lautstärke im Grafikmenü (jetzt „Grafik und Ton“), 0 = aus. Browser erlauben Ton erst nach einer Taste oder einem Klick. Testanzeige zeigt Wetter und Ton
+- 253 Tests grün
+
+Offen aus Wetter und Sound:
+
+- [ ] Selbst anhören: Sind Wind, Reifen und Freilauf passend laut? Werte in `soundMix.ts` und die Faktoren in `audio.ts` (`update`)
+- [ ] Wetter am echten Bildschirm prüfen: Regen zu dicht oder zu blass (`rain.ts`), Nebel zu dicht (`fogRange`)?
+- [ ] Musik (im Bauplan genannt) ist bewusst noch nicht drin
+- [ ] Optional: nasse Straße bei Regen (dunkler, glänzend), Wind bewegt Gras und Bäume stärker, Gewitter
 
 **18.11.2026, Phase 6: Nordkap** (Vorgaben aus dem Gespräch: ab Level 5, zwei Zugänge für eine Rundtour):
 - Welt von 6 auf **7,2 km** vergrößert (gleiches 10-m-Raster). Die Nordküste wölbt sich zwischen Obersee und Ostküste um gut 400 m nach Norden (`northCoastZ`, `NORDKAP`, `CAPE`, `COVES` in `terrainGen.ts`). Südlich der alten Küstenlinie ist das Gelände unverändert: alle bisherigen Wege haben exakt die gleichen Höhen (geprüft), `nordkapMask` ist dort 0 (getestet). Erkundungsnebel alter Spielstände wird mittig übernommen (getestet)

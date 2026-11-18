@@ -92,6 +92,12 @@ function createSky(): THREE.Mesh {
   return sky;
 }
 
+/**
+ * Bedeckung des Himmels 0 … 1 (Wetter). Jede Wolke hat einen Rang; sichtbar sind die
+ * Wolken mit Rang unter der Bedeckung, sie wachsen dabei weich auf und werden größer.
+ */
+export const CLOUD_COVER = { value: 0.32 };
+
 /** Low-Poly-Wolken aus abgeflachten Ikosaedern, langsam ziehend. */
 function createClouds(count: number, seed = 7): THREE.Group {
   const group = new THREE.Group();
@@ -103,6 +109,18 @@ function createClouds(count: number, seed = 7): THREE.Group {
   const mat = new THREE.MeshLambertMaterial({
     color: '#ffffff', emissive: '#c9d6e2', emissiveIntensity: 0.55, flatShading: true, fog: false,
   });
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uCover = CLOUD_COVER;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec4 aCloud;\nuniform float uCover;')
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        // Wolke wächst aus ihrer Mitte, sobald die Bedeckung ihren Rang erreicht; bei dichter Decke größer
+        float grow = smoothstep(aCloud.w - 0.06, aCloud.w + 0.04, uCover) * (0.85 + 0.75 * uCover * uCover);
+        transformed = aCloud.xyz + (transformed - aCloud.xyz) * grow;`,
+      );
+  };
   // Alle Wolken in einem Mesh: ein Zeichenaufruf statt über hundert
   const puff = new THREE.IcosahedronGeometry(1, 1);
   const parts: THREE.BufferGeometry[] = [];
@@ -122,11 +140,20 @@ function createClouds(count: number, seed = 7): THREE.Group {
       puffs.push(local.matrix.clone());
     }
     const ang = rnd() * Math.PI * 2;
-    const dist = 500 + rnd() * 2600;
+    const dist = 400 + Math.sqrt(rnd()) * 2900;
     cloud.position.set(Math.cos(ang) * dist, 380 + rnd() * 320, Math.sin(ang) * dist);
     cloud.rotation.set(0, rnd() * Math.PI, 0);
     cloud.updateMatrix();
-    for (const pm of puffs) parts.push(puff.clone().applyMatrix4(m.multiplyMatrices(cloud.matrix, pm)));
+    // Rang gleichmäßig verteilt: bei Bedeckung x sind etwa x · count Wolken zu sehen
+    const rank = (c + 0.5) / count;
+    for (const pm of puffs) {
+      const g = puff.clone().applyMatrix4(m.multiplyMatrices(cloud.matrix, pm));
+      const n2 = g.attributes.position!.count;
+      const a = new Float32Array(n2 * 4);
+      for (let k = 0; k < n2; k++) a.set([cloud.position.x, cloud.position.y, cloud.position.z, rank], k * 4);
+      g.setAttribute('aCloud', new THREE.BufferAttribute(a, 4));
+      parts.push(g);
+    }
   }
   const mesh = new THREE.Mesh(mergeGeometries(parts)!, mat);
   mesh.frustumCulled = false;
@@ -153,7 +180,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneBundle {
   // Kuppel wandert mit der Kamera mit
   sky.onBeforeRender = () => sky.position.copy(camera.position);
 
-  const clouds = createClouds(26);
+  const clouds = createClouds(90);
   clouds.name = 'wolken';
   scene.add(clouds);
 
@@ -197,6 +224,6 @@ export function followSun(sun: THREE.DirectionalLight, target: THREE.Vector3): v
 }
 
 /** Wolken ziehen langsam um die Insel. */
-export function driftClouds(clouds: THREE.Group, dt: number): void {
-  clouds.rotation.y += dt * 0.004;
+export function driftClouds(clouds: THREE.Group, dt: number, wind = 0): void {
+  clouds.rotation.y += dt * 0.004 * (1 + 2 * wind);
 }

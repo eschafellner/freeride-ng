@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { CYCLE_START, lightState, wrapTime, type LightState, type Rgb } from './dayCycle';
 import { NIGHT_GLOW } from './houses';
 import type { DayNightMode } from './quality';
-import { SKY, SKY_EXTRA, SUN_DIR, type SceneBundle } from './scene';
+import { CLOUD_COVER, SKY, SKY_EXTRA, SUN_DIR, type SceneBundle } from './scene';
+import { applyWeather, fogRange, LOOKS, type WeatherLook } from './weatherCycle';
 
 /**
  * Überträgt den Tag-Nacht-Zyklus auf die Szene: Sonne bzw. Mond als
  * Schattenlicht, Himmelslicht, Himmel, Nebel, Wolken, Sterne, Wasser,
  * Lampen und Fenster. Im Modus „Immer Tag“ gilt der feste Tageszustand von früher.
+ * Darüber legt sich das Wetter (Wolken, grauer Himmel, Nebel).
  */
 export class DayNight {
   /** Sekunden im Zyklus (0 = Sonnenaufgang). */
@@ -16,6 +18,10 @@ export class DayNight {
   private readonly cloudMat: THREE.MeshLambertMaterial | null;
   private readonly dayCloud = new THREE.Color('#ffffff');
   private readonly nightCloud = new THREE.Color('#4d5a7a');
+  private readonly rainCloud = new THREE.Color('#8d949c');
+  private readonly tmpCloud = new THREE.Color();
+  /** Wetter, das auf das Licht wirkt (setzt `Weather` über `setWeather`). */
+  private weather: WeatherLook = { ...LOOKS.heiter };
   /** Fester Tageszustand (so wie die Szene vor dem Tag-Nacht-Wechsel aussah). */
   private readonly fixedDay: LightState;
 
@@ -50,14 +56,17 @@ export class DayNight {
 
   /** Zeit weiterlaufen lassen (nur im Zyklus und während gefahren wird). */
   update(dt: number, running: boolean): void {
-    if (this.mode !== 'zyklus' || !running) return;
-    this.time = wrapTime(this.time + dt);
+    if (this.mode === 'zyklus' && running) this.time = wrapTime(this.time + dt);
     this.apply();
   }
 
-  /** Aktueller Zustand (für Anzeige und Tests). */
+  setWeather(look: WeatherLook): void {
+    this.weather = look;
+  }
+
+  /** Aktueller Zustand (für Anzeige und Tests), mit Wetter. */
   state(): LightState {
-    return this.mode === 'zyklus' ? lightState(this.time) : this.fixedDay;
+    return applyWeather(this.mode === 'zyklus' ? lightState(this.time) : this.fixedDay, this.weather);
   }
 
   apply(): void {
@@ -72,16 +81,23 @@ export class DayNight {
     hemi.color.setRGB(...s.hemiSky, THREE.SRGBColorSpace);
     hemi.groundColor.setRGB(...s.hemiGround, THREE.SRGBColorSpace);
     hemi.intensity = s.hemiIntensity;
-    (scene.fog as THREE.Fog).color.copy(SKY.horizon);
+    const fog = scene.fog as THREE.Fog;
+    fog.color.copy(SKY.horizon);
+    const range = fogRange(this.weather);
+    fog.near = range.near;
+    fog.far = range.far;
+    // Im dichten Nebel sieht man keine einzelnen Wolken mehr
+    const f = this.weather.fog;
+    CLOUD_COVER.value = this.weather.cover * (1 - Math.min(1, Math.max(0, (f - 0.45) / 0.45)));
     (scene.background as THREE.Color).copy(SKY.horizon);
     SKY_EXTRA.stars.value = s.stars;
     // Mondhof kleiner als der Sonnenhof
-    SKY_EXTRA.halo.value = s.moon ? 0.45 : 1;
+    SKY_EXTRA.halo.value = (s.moon ? 0.45 : 1) * (1 - this.weather.overcast * 0.9) * (1 - this.weather.fog * 0.7);
     SKY_EXTRA.daylight.value = s.daylight;
     NIGHT_GLOW.value = s.lamps;
     if (this.cloudMat) {
       this.cloudMat.emissiveIntensity = 0.55 * s.cloudGlow;
-      this.cloudMat.color.copy(this.nightCloud).lerp(this.dayCloud, s.daylight);
+      this.cloudMat.color.copy(this.nightCloud).lerp(this.tmpCloud.copy(this.dayCloud).lerp(this.rainCloud, this.weather.overcast), s.daylight);
     }
   }
 }

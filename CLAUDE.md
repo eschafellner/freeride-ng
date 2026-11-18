@@ -11,7 +11,8 @@ Vollständiger Bauplan: `docs/bauplan.md` (eine Phase pro Session).
     `&edge=<Kanten-ID>&s=<Meter>&dir=-1` für einen festen Startpunkt, `&quality=niedrig|mittel|hoch`,
     `&cam=x,y,z,zielX,zielY,zielZ` für eine feste Kamera, `&hud=radcomputer`, `&stats` schreibt Zeichenaufrufe
     und die größten Meshes in die Konsole, `&locked` lässt gesperrte Gebiete zu, `&uhr=21.5` setzt die Tageszeit,
-    `&licht` schaltet das Fahrradlicht ein, `&tag` mit `&quality=` erzwingt „Immer Tag“); Debug: `/debug.html`
+    `&licht` schaltet das Fahrradlicht ein, `&tag` mit `&quality=` erzwingt „Immer Tag“, `&wetter=regen|nebel|…` feste Wetterlage,
+    `&ton` startet den Ton ohne Eingabe, falls der Browser es erlaubt); Debug: `/debug.html`
   - `?demo` lädt und speichert nie (schützt den echten Spielstand) und öffnet alle Gebiete
 - `npm test` – Vitest einmalig, `npm run test:watch` im Watch-Modus
 - `npm run typecheck`, `npm run lint`, `npm run build`
@@ -59,7 +60,8 @@ Gerät: Web Serial API (nur Chrome/Edge am Desktop).
   Details (`props.ts` Platzierung/Vegetation, `houses.ts` Hausvarianten und Wege zur Tür, `shopFronts.ts` Ladenfronten, `details.ts` Wegrand/Weinberge,
   `landmarks.ts` Kirche/Kapelle/Hafen, `bridges.ts` Stein- und Holzbrücken, `mountain.ts` Almhütte/Gipfelkreuz/Kehrenschilder, `nordkap.ts` Leuchtturm/Boote/Robben/Möwen), Detailstufen (`lod.ts`: Kacheln und Nah-/Fernmodelle), Grafik (`quality.ts` Einstellungen, `graphics.ts` + `graphicsPanel.ts` Grafikmenü,
   `grass.ts`, `water.ts` (Meer und Seen), `paving.ts`, `postfx.ts`, `shaderChunks.ts` gemeinsame Gelände-Texturen),
-  Tag-Nacht-Wechsel (`dayCycle.ts` reine Rechnung und Farben, `dayNight.ts` überträgt sie auf die Szene)
+  Tag-Nacht-Wechsel (`dayCycle.ts` reine Rechnung und Farben, `dayNight.ts` überträgt sie auf die Szene),
+  Wetter (`weatherCycle.ts` reine Rechnung, `weather.ts`, `rain.ts`), Ton (`soundMix.ts` reine Rechnung, `audio.ts` Web Audio)
 - `src/debug/` – Debug-Seite (`debug.html`) (Live-Werte, Zielwatt, Notstopp, Rohdaten-Konsole)
 - `tests/` – Unit-Tests; `tests/fixtures/` ST-Beispielzeilen
 - `docs/bauplan.md` – Bauplan, offene Punkte werden dort nachgetragen

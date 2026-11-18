@@ -30,11 +30,11 @@ CP2102-Adapter als `/dev/ttyUSB0`, aber das Cockpit antwortet bisher auf keinen 
 | Phase 6, Schritt 4: Hoher Kogel mit Serpentinen (ab Level 6) | ✅ |
 | Phase 6, Schritt 5: Spiegelseen mit Seebrücke (ab Level 4) | ✅ |
 | Phase 6, Schritt 6: Nordkap mit Leuchtturm (ab Level 5), Welt 7,2 × 7,2 km | ✅ |
-| Phase 6: Wetter, Sound | ⏭ offen |
+| Phase 6, Schritt 7: Wetter (optisch) und Sound (Web Audio) | ✅ |
 | Phase 7, Schritt 1: Fahrten-Historie, Export als TCX und FIT | ✅ |
 | Phase 7: Workouts (ERG, `.zwo`) | ⏭ offen (erst nach Phase 0 sinnvoll) |
 
-Qualität: 238 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
+Qualität: 253 Tests grün (einer wartet auf echte E5-Daten), Typecheck und Lint fehlerfrei.
 
 ## Starten
 
@@ -55,6 +55,8 @@ npm test             # Tests
 - Nordkap: `/?demo&edge=leuchtturmweg&s=60` (Leuchtturm), `&edge=klippenstrasse&s=900` (unter dem Kogel),
   `&edge=robbenstrasse&s=100` (Kapdorf), nachts mit `&uhr=21.5` (Lichtstrahl). Schranken:
   `&edge=obersee-n&s=10&locked` (Oberseeblick), `&edge=heideweg&s=1640&locked` (Glutplateau)
+- Wetter: `&wetter=regen|nebel|bedeckt|bewoelkt|heiter|klar` (fest), Grafikmenü: „Wechselnd“ oder „Immer schön“
+- Ton: startet nach der ersten Taste oder dem ersten Klick, Lautstärke im Grafikmenü (`G`), Testanzeige zeigt den Stand
 - Leistung: Testanzeige `T` zeigt Zeichenaufrufe und Dreiecke, `&stats` schreibt Details in die Konsole
 - Fahrten: Startmenü → „Fahrten-Historie“, „Fahrt beenden“ im Pausenmenü. Im Demo-Modus wird nichts gespeichert,
   der Export am Ende einer Fahrt geht trotzdem
@@ -127,6 +129,13 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 - Ist die Nacht so hell wie gewünscht (Stufe 6 von 10)? Stellschrauben: `PALETTE.night` in `src/game/dayCycle.ts`
 - Fenster, Laternen, Fahrradlicht (`L`) passend hell? Fenster in `houseGlow` (`houses.ts`), Scheinwerfer `HEADLIGHT_INTENSITY` (`riderModel.ts`)
 
+**Wetter und Sound selbst prüfen:**
+- Eine längere Fahrt: Wechselt das Wetter angenehm (alle 4–9 Minuten)? Ist Regen oder Nebel zu dicht?
+  Werte in `weatherCycle.ts` (`LOOKS`, `WEATHER`, `fogRange`), Regen in `rain.ts`
+- Ton anhören: Fahrtwind, Reifen, Freilauf (Rollen ohne Treten), Schotter, Meer, Vögel, Möwen am Nordkap,
+  Grillen nachts, Klänge bei Kristall, Level und Segmenten. Lautstärken in `soundMix.ts`
+- Wer kein Wetter will: Grafikmenü → Wetter „Immer schön“; Ton aus: Lautstärke auf 0
+
 **Nordkap selbst prüfen:**
 - Ab Level 5 öffnen sich die Schranken am Oberseeblick (Spiegelseen) und am Glutplateau (Glutsteppe)
 - Fühlt sich die Küstenstraße wellig, aber angenehm an? Kurze Rampe an den Ostklippen (≈ 8 %)
@@ -168,15 +177,9 @@ Gamepad: Steuerkreuz wie Pfeiltasten, LB/RB schalten, Start Pause, Back Karte.
 
 ## Nächster Schritt
 
-Phase 6 abschließen: **Wetter** (Wolkendecke, Nebel, Regen, nur optisch) oder **Sound** (Fahrgeräusche,
-Wind, Meer, Möwen, prozedural per Web Audio). Startprompt:
-
-```text
-Lies CLAUDE.md, docs/stand.md und Bauplan Phase 6. Lass uns Wetter planen: wechselnde Wolken,
-Nebel und Regen, rein optisch, im Grafikmenü abschaltbar.
-```
-
-Alternativ, wenn das Kabel da ist, zuerst Phase 0 mit dem Startprompt:
+Phase 6 ist abgeschlossen (bis auf Musik). Offen ist vor allem **Phase 0** (Hardware) und danach
+Phase 7 (Workouts im ERG-Modus). Ohne Kabel bieten sich an: Musik, Rad-Skins mit Währung, Leben in den
+Orten (Passanten, Café-Gäste) oder Feinschliff nach eigenem Fahren. Startprompt für Phase 0:
 
 ```text
 Lies CLAUDE.md und docs/stand.md. Das USB-Kabel ist da, lass uns Phase 0 (Hardwaretest E5)

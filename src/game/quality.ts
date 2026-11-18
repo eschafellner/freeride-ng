@@ -29,17 +29,25 @@ export interface GraphicsSettings {
   hud: HudStyle;
   /** Immer Tag oder Tag-Nacht-Zyklus (keine Grafiklast, bleibt bei Voreinstellungen erhalten). */
   dayNight: DayNightMode;
+  /** Wechselndes Wetter oder immer schön (bleibt bei Voreinstellungen erhalten). */
+  weather: WeatherMode;
+  /** Lautstärke der Geräusche 0 … 1, 0 = aus (bleibt bei Voreinstellungen erhalten). */
+  volume: number;
 }
+
+export type WeatherMode = 'wechselnd' | 'schoen';
 
 export type DayNightMode = 'tag' | 'zyklus';
 
 export type HudStyle = 'standard' | 'radcomputer';
 
-export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud' | 'dayNight'>> = {
+export const PRESETS: Record<QualityLevel, Omit<GraphicsSettings, 'preset' | 'hud' | 'dayNight' | 'weather' | 'volume'>> = {
   niedrig: { pixelRatio: 1, shadowMapSize: 1024, grassDistance: 0, grassDensity: 4, waveCell: 0, ao: false, bloom: false, detailDistance: 0.6, surfaces: false },
   mittel: { pixelRatio: 1.5, shadowMapSize: 2048, grassDistance: 70, grassDensity: 6, waveCell: 16, ao: false, bloom: false, detailDistance: 1, surfaces: true },
   hoch: { pixelRatio: 2, shadowMapSize: 4096, grassDistance: 120, grassDensity: 9, waveCell: 8, ao: true, bloom: true, detailDistance: 1.5, surfaces: true },
 };
+
+export const DEFAULT_VOLUME = 0.6;
 
 export const QUALITY_LABEL: Record<QualityLevel | 'eigene', string> = {
   niedrig: 'Niedrig',
@@ -54,12 +62,16 @@ export const LIMITS = {
   grassDensity: { min: 2, max: 12, step: 1 },
   pixelRatio: { min: 0.75, max: 2, step: 0.25 },
   detailDistance: { min: 0.5, max: 2, step: 0.25 },
+  volume: { min: 0, max: 1, step: 0.05 },
   shadowMapSize: [0, 1024, 2048, 4096] as const,
   waveCell: [0, 16, 8] as const,
 };
 
-export function presetSettings(level: QualityLevel, hud: HudStyle = 'standard', dayNight: DayNightMode = 'zyklus'): GraphicsSettings {
-  return { preset: level, ...PRESETS[level], hud, dayNight };
+export function presetSettings(
+  level: QualityLevel, hud: HudStyle = 'standard', dayNight: DayNightMode = 'zyklus', weather: WeatherMode = 'wechselnd',
+  volume = DEFAULT_VOLUME,
+): GraphicsSettings {
+  return { preset: level, ...PRESETS[level], hud, dayNight, weather, volume };
 }
 
 const KEY = 'freeride-ng.graphics';
@@ -88,6 +100,8 @@ export function sanitizeSettings(raw: unknown): GraphicsSettings {
     surfaces: typeof r.surfaces === 'boolean' ? r.surfaces : base.surfaces,
     hud: r.hud === 'radcomputer' ? 'radcomputer' : 'standard',
     dayNight: r.dayNight === 'tag' ? 'tag' : 'zyklus',
+    weather: r.weather === 'schoen' ? 'schoen' : 'wechselnd',
+    volume: clampNum(r.volume, LIMITS.volume.min, LIMITS.volume.max, DEFAULT_VOLUME),
   };
 }
 
@@ -96,7 +110,8 @@ export function loadSettings(search = location.search): GraphicsSettings {
   const params = new URLSearchParams(search);
   const fromUrl = params.get('quality');
   if (isLevel(fromUrl)) {
-    return presetSettings(fromUrl, params.get('hud') === 'radcomputer' ? 'radcomputer' : 'standard', params.get('tag') !== null ? 'tag' : 'zyklus');
+    return presetSettings(fromUrl, params.get('hud') === 'radcomputer' ? 'radcomputer' : 'standard', params.get('tag') !== null ? 'tag' : 'zyklus',
+      params.get('schoen') !== null ? 'schoen' : 'wechselnd');
   }
   try {
     const stored = localStorage.getItem(KEY);

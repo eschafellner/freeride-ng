@@ -32,6 +32,10 @@ import { createProps } from './props';
 import { RiderModel } from './riderModel';
 import { createRoadMesh } from './roadMesh';
 import { GraphicsController } from './graphics';
+import { SoundEngine } from './audio';
+import { seaNearness, soundMix } from './soundMix';
+import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from './weatherCycle';
+import { nordkapMask, steppeMask } from '../world/terrainGen';
 import { GraphicsPanel } from './graphicsPanel';
 import { createPaving } from './paving';
 import { loadSettings, storeSettings } from './quality';
@@ -81,7 +85,9 @@ async function main() {
   // Demo: Uhrzeit per URL (&uhr=21.5) für Prüfungen von Dämmerung und Nacht
   const clockParam = demo ? Number(params.get('uhr')) : NaN;
   const graphics = new GraphicsController(bundle, terrainUniforms, loadSettings(),
-    Number.isFinite(clockParam) && params.has('uhr') ? timeForClock(clockParam) : undefined);
+    Number.isFinite(clockParam) && params.has('uhr') ? timeForClock(clockParam) : undefined,
+    // Demo: feste Wetterlage per URL (&wetter=regen), zum Prüfen der Grafik
+    demo && WEATHER_KINDS.includes(params.get('wetter') as WeatherKind) ? (params.get('wetter') as WeatherKind) : null);
   scene.add(Object.assign(createRoadMesh(world.roads), { name: 'wege' }));
   scene.add(Object.assign(createPaving(world.terrain, world.roads), { name: 'pflaster' }));
   const landmarks = createLandmarks(world.terrain, world.roads);
@@ -444,9 +450,19 @@ async function main() {
     if (!bigmap.hidden) drawBigMap();
   }
 
+  // Ton: erst nach der ersten Eingabe erlaubt (Autoplay-Sperre der Browser)
+  const sound = new SoundEngine(graphics.settings.volume);
+  for (const ev of ['pointerdown', 'keydown'] as const) document.addEventListener(ev, () => sound.unlock());
+  // Demo: &ton versucht den Ton sofort zu starten (klappt nur, wenn der Browser es erlaubt)
+  if (demo && params.has('ton')) sound.unlock();
+  let seaNear = 0;
+  let seaTimer = 0;
+
   const graphicsPanel = new GraphicsPanel($('graphics'), graphics.settings, (s) => {
     graphics.apply(s);
     storeSettings(s);
+    sound.setVolume(s.volume);
+    sound.unlock();
   });
   /** Grafikmenü: während der Fahrt wird dafür pausiert (Widerstand aufs Minimum). */
   function toggleGraphics(force?: boolean) {
@@ -490,9 +506,11 @@ async function main() {
         break;
       case 'shiftDown':
         engine.shiftDown();
+        sound.play('shift');
         break;
       case 'shiftUp':
         engine.shiftUp();
+        sound.play('shift');
         break;
       case 'turnLeft':
       case 'turnRight': {
@@ -515,6 +533,7 @@ async function main() {
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') pause();
+    sound.setSuspended(document.visibilityState === 'hidden');
   });
   window.addEventListener('pagehide', () => {
     device?.emergencyStop();
@@ -529,11 +548,13 @@ async function main() {
       case 'collect':
         poiMeshes.collect(ev.poi.id);
         toasts.show('Kristall gefunden', `${ev.collected} von ${ev.total}`, 'gold');
+        sound.play('collect');
         if (ev.collected === ev.total) toasts.show('Alle Kristalle gefunden!', 'Die ganze Insel ist abgesucht', 'gold');
         saveNow();
         break;
       case 'viewpoint':
         toasts.show(`Aussichtspunkt: ${ev.poi.name ?? ''}`, `${ev.discovered} von ${ev.total} entdeckt`);
+        sound.play('viewpoint');
         saveNow();
         break;
       case 'sign':
@@ -584,6 +605,7 @@ async function main() {
     const lvl = levelFor(currentXp(s));
     if (lvl.level > shownLevel && !silent) {
       toasts.show(`Level ${lvl.level} erreicht!`, '', 'level');
+      sound.play('level');
       saveNow();
     }
     shownLevel = lvl.level;
@@ -599,7 +621,10 @@ async function main() {
       if (!world.roads.lockedRegions.has(r.id) || level < r.unlockLevel) continue;
       world.roads.lockedRegions.delete(r.id);
       for (const g of r.gateNodes) gates[g]!.visible = false;
-      if (!silent) toasts.show(`Neues Gebiet: ${r.name}`, `Jetzt offen ${r.via}`, 'level');
+      if (!silent) {
+        toasts.show(`Neues Gebiet: ${r.name}`, `Jetzt offen ${r.via}`, 'level');
+        sound.play('region');
+      }
     }
   }
 
@@ -609,12 +634,14 @@ async function main() {
     switch (ev.type) {
       case 'segmentStart':
         toasts.show(label, ev.best === null ? 'Erste Fahrt – los!' : `Bestzeit ${formatSegmentTime(ev.best)} · Ghost fährt mit`);
+        sound.play('segmentStart');
         break;
       case 'segmentFinish': {
         const first = ev.previousBest === null;
         const xp = segmentXp(ev.newBest, first);
         bonusXp += xp;
         const time = formatSegmentTime(ev.time);
+        sound.play('segmentFinish');
         if (first) toasts.show(`${label}: ${time}`, `Erste Bestzeit · +${xp} XP`, 'segment-ok');
         else if (ev.newBest) toasts.show(`Neue Bestzeit: ${time}`, `${label} · ${formatDelta(ev.time - ev.previousBest!)} · +${xp} XP`, 'gold');
         else toasts.show(`${label}: ${time}`, `Bestzeit ${formatSegmentTime(ev.previousBest!)} · ${formatDelta(ev.time - ev.previousBest!)} · +${xp} XP`, 'segment-ok');
@@ -625,6 +652,7 @@ async function main() {
       }
       case 'segmentAbort':
         toasts.show(`${label} abgebrochen`, 'Strecke verlassen', 'segment-bad');
+        sound.play('segmentFail');
         break;
     }
   }
@@ -777,6 +805,7 @@ async function main() {
       ['Höhenmeter', `${Math.round(s.elevationGain)} m`],
       ['Fahrzeit', fmtTime(s.timeSec)],
       ['Level', `${levelFor(currentXp()).level} (${currentXp()} XP)`],
+      ['Wetter', WEATHER_LABEL[graphics.weather.kind]],
       ...REGIONS.map((r) => [r.name, world.roads.lockedRegions.has(r.id) ? `gesperrt bis Level ${r.unlockLevel}` : 'offen']),
     ].map(([k, v]) => `<span class="label">${k}</span><span>${v}</span>`).join('');
     $('bigmap-segments').innerHTML = segments.map((seg) => {
@@ -891,8 +920,22 @@ async function main() {
     }
     followSun(sun, riderPos);
     clock += dt;
-    graphics.dayNight.update(dt, session !== null && !session.isPaused);
+    graphics.updateSky(dt, session !== null && !session.isPaused, steppeMask(riderPos.x, riderPos.z), nordkapMask(riderPos.x, riderPos.z));
     graphics.update(clock, camera);
+    // Geräusche: Nähe zum Meer nur zweimal pro Sekunde neu bestimmen
+    seaTimer -= dt;
+    if (seaTimer <= 0) {
+      seaTimer = 0.5;
+      seaNear = seaNearness((x, z) => world.terrain.sample(x, z), riderPos.x, riderPos.z);
+    }
+    const sky = graphics.dayNight.state();
+    const weatherNow = graphics.weather.current;
+    sound.update(soundMix({
+      speed: state.speed, cadence: state.cadence, gravel: rider.edge.surface === 'gravel',
+      paused: !session || session.isPaused, rain: weatherNow.rain, overcast: weatherNow.overcast,
+      daylight: sky.daylight, sea: seaNear, steppe: steppeMask(riderPos.x, riderPos.z),
+      coast: nordkapMask(riderPos.x, riderPos.z), height: riderPos.y,
+    }));
     driftClouds(bundle.clouds, dt);
 
     if (session && !session.isPaused) {
@@ -945,6 +988,12 @@ async function main() {
         tp('fps').textContent = `${Math.round(fps)} fps · ${ms.toFixed(1)} ms`;
         const info = bundle.renderer.info.render;
         tp('draw').textContent = `${info.calls} · ${(info.triangles / 1000).toFixed(0)} k`;
+        const w = graphics.weather.current;
+        const m = sound.lastMix;
+        tp('sound').textContent = graphics.settings.volume <= 0 ? 'aus'
+          : !sound.running ? 'wartet auf Taste/Klick'
+            : m ? `Wind ${Math.round(m.wind.gain * 100)} · Meer ${Math.round(m.sea * 100)} · Vögel ${m.birds.toFixed(0)}/min` : 'an';
+        tp('weather').textContent = `${WEATHER_LABEL[graphics.weather.kind]} · Regen ${Math.round(w.rain * 100)} % · Nebel ${Math.round(w.fog * 100)} %`;
       }
       if (statsLog) logSceneStats();
       graphicsPanel.showFps(fps, ms);
